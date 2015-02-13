@@ -1,0 +1,200 @@
+module nodes.ktyp;
+import common;
+import std.conv;
+
+class KTyp : KNode{
+	EKind kind;
+	int size;
+	//string baseName;
+	KTyp base;
+	
+	
+	enum EKind{
+		kvec,
+		karray,
+		kstruct,
+		kenum,
+		//kenumEntry,
+		kmethod
+	}
+}
+
+KTyp[int] allCustomSizedVecs;
+KTyp getCustomSizedVec(int siz){
+	foreach(t; baseTyps){
+		if(siz == t.size && t.kind == KTyp.EKind.kvec)return t;
+	}
+	KTyp t = allCustomSizedVecs.get(siz, null);
+	if(t)return t;
+	t = new KTyp;
+	t.name="vec[" ~ to!string(siz) ~ "]";
+	t.kind = KTyp.EKind.kvec;
+	t.size = siz;
+	return t;
+}
+
+
+KTyp reqTyp(KNode node){
+	string name = reqIdent;
+
+	if(name == "vec"){
+		req('[');
+		int siz = reqNum(1, MAX_VEC_SIZE);
+		req(']');
+		return getCustomSizedVec(siz);
+	}
+
+	foreach(t; baseTyps){
+		if(name == t.name)return t;
+	}
+
+	KTyp t = node.findNode!KTyp(name);
+	if(t) return t;
+
+	err("Cannot find type");
+	return null;
+}
+
+/*
+string reqTypName(){
+	string t = reqIdent;
+	if(t!="vec")return t;
+	req('[');
+	int siz = reqNum(1, MAX_VEC_SIZE);
+	req(']');
+	t = "vec[" ~ to!string(siz) ~ "]";
+	return t;
+}
+*/
+
+class KMethod : KNode{
+	KTyp[] argTyps;
+	KTyp retTyp;
+}
+
+class KProp : KNode{
+	bool readOnly;
+	KTyp typ;
+}
+
+class KHandle : KNode{
+	class Prop{
+		string name;
+	}
+}
+
+class KClock : KHandle{
+	
+}
+
+class KEnumEntry : KNode{
+}
+
+void ReadVarDecls(KNode parent, KVar base){
+	KTyp typ = reqTyp(parent);
+
+	for(;;){
+		KVar v = new KVar;
+		v.readName(parent);
+		v.typ = typ;
+		v.storage	= base.storage;
+		v.clock		= base.clock;
+		v.Is		= base.Is;
+
+		if(peek('=')){
+			char lastChar;
+			v.reset = reqTermRange(',', ';', lastChar);
+			if(lastChar==';')return;
+			continue;
+		}
+		if(peek(';'))return;
+		req(',');
+	}
+}
+
+
+void ReadScopedVarDecls(KNode parent, KVar base){
+	req('{');
+	for(;;){
+		if(peek('}'))return;
+		ReadVarDecls(parent, base);
+	}
+}
+
+void ProcKW_Struct(KNode parent){
+	KTyp str = new KTyp;
+	str.readUniqName(parent);
+	str.kind = KTyp.EKind.kstruct;
+
+	KVar base = new KVar;
+
+	ReadScopedVarDecls(str, base);
+}
+
+void ProcKW_Enum(KNode parent){
+	KTyp enu = new KTyp;
+	enu.readUniqName(parent);
+	enu.kind = KTyp.EKind.kenum;
+
+	req('{');
+	for(;;){
+		KEnumEntry e = new KEnumEntry;
+		e.readName(enu);
+
+		if(peek('}'))return;
+		req(',');
+	}
+}
+
+void ProcKW_Type(KNode parent){
+	KTyp typ = new KTyp;
+	typ.readUniqName(parent);
+	typ.base = reqTyp(parent);
+	typ.kind = KTyp.EKind.karray;
+	if(peek('[')){
+		typ.size = reqNum(1, MAX_ARRAY_SIZE);
+		req(']');
+	}else{
+		// is an alias, copy contents instead
+		typ.kind = typ.base.kind;
+		typ.size = typ.base.size;
+		typ.base = null;
+	}
+	req(';');
+}
+
+void ProcKW_Unit_Reg(KUnit parent){
+	KVar base = new KVar;
+	base.storage = KVar.EStor.kreg;
+	req('<');	base.clock = reqIdent; req('>');
+
+	ReadScopedVarDecls(parent, base);
+}
+
+void ProcKW_Unit_WireOrLatch(KUnit parent, bool isWire){
+	KVar base = new KVar;
+	base.storage = isWire ? KVar.EStor.kwire : KVar.EStor.klatch;
+
+	ReadScopedVarDecls(parent, base);
+}
+
+
+private{
+	KTyp makeBtinVec(int size, string name){
+		KTyp t = new KTyp;
+		t.name = name;
+		t.kind = KTyp.EKind.kvec;
+		t.size = size;
+		return t;
+	}
+	
+	KTyp[] baseTyps = [
+		makeBtinVec(1, "bit"),
+		makeBtinVec(2, "u2"),
+		makeBtinVec(4, "u4"),
+		makeBtinVec(8, "u8"),
+		makeBtinVec(16,"u16"),
+		makeBtinVec(32,"u32"),
+		makeBtinVec(64,"u64"),
+	];
+}

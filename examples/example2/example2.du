@@ -1,0 +1,100 @@
+import example2.myStructs; // this automatically imports package file "example1/myStructs.dpak"
+import example2.myPorts;
+
+
+
+unit MyAdder{
+	on_clock main<clk>{
+		z = x + y;
+	}
+}
+
+unit example2{
+	struct MyStuff{
+		u8 a,b;
+		nn c;
+	}
+	
+	enum TState{
+		idle,
+		adding,
+		subtracting
+	}
+	
+	reg <clk> {
+		MyStuff dd;
+		TState ts;
+		u8 thingie = 9;
+	}
+	wire {
+		u8 someWire;
+	}
+	
+	sub_unit MyAdder adder;
+	sub_unit MyAdder add2;
+	
+	link{
+		adder.clk = clk;
+		add2.clk = clk;
+		add2.x = adder.z;
+	}
+	
+	
+	on_clock main<clk>{
+		adder.x = 5;
+		adder.y = 10;
+		ccc = aaa + bbb + adder.z;
+		wOut = aaa + 1;
+		thingie = thingie + 1;
+		
+		someWire = 11;
+		
+		dd.c = 0;
+		
+		if bbb[3]{
+			//ccc = 0;
+		}
+		//ccc[6] ?= dd.c[5] ? aaa[6] : bbb[7];
+		
+		/*
+		//ccc = aaa + bbb*ccc;
+		ccc[5] = dd.a[bbb,1];
+		ccc[6,2] = dd.c[4,2];
+		
+		//ccc[5] = (dd).a[1]; // implement:  "MyStuff tmp = (dd); cc[5] = tmp.a[1];"
+		
+		
+
+		ccc = mux(aaa){
+			0: 		aaa;
+			1,4: 	bbb+2;
+			2: 		13;
+			else: 	15;
+		};
+		
+		ccc = mux(ts){
+			TState.idle:	aaa;
+		};
+		
+		if aaa{
+			ccc = 10;
+		}elif bbb{
+			ccc = 3;
+		}else{
+			ccc = 4;
+		}
+		ccc = 15;
+		*/
+		
+	}
+}
+
+testbench example2_tb<example2>{
+	force{
+		aaa = 3;
+	}
+	verify(10,2) in(bbb) out(ccc){ 
+		1:4;
+		16:19;
+	}
+}

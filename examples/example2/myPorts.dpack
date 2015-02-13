@@ -1,0 +1,27 @@
+interface example2{
+	clock clk;
+	
+	in reg <clk> {
+		u8 aaa,bbb;
+	}
+	out reg <clk>{
+		u8 ccc = 0;
+	}
+	
+	in wire{
+		u8 wIn;
+	}
+	out wire{
+		u8 wOut;
+	}
+}
+
+interface MyAdder{
+	clock clk;
+	in reg<clk>{
+		u8 x,y;
+	}
+	out reg<clk>{
+		u8 z;
+	}
+}

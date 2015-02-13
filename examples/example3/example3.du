@@ -1,0 +1,38 @@
+//import example3.cpu_types;
+/*
+interface SimpleCPU{
+	clock clk;
+	out reg<clk>{
+		
+	}
+	
+}
+
+
+
+unit SimpleCPU{
+	reg<clk>{
+		u32 IP = 0;
+		u32 r0,r1,r2,r3;
+	}
+	
+	
+	on_clock pipe0<clk>{
+		
+		
+	}
+}
+*/
+
+interface example3{
+	clock clk;
+}
+
+unit example3{
+	/* sub_unit SimpleCPU cpu;
+	link{
+		cpu.clk = clk;
+	}*/
+	
+	RAM dual<clk,clk> u16 mram[256];
+}

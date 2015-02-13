@@ -1,0 +1,11 @@
+type CmdType vec[4];
+
+//type nn vec[15+10*2+(4)];
+type nn vec[30];
+
+struct CPUCtrl{
+	CmdType cmd;
+	u8  addr;
+	u16 data;
+}
+
