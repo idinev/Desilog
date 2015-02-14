@@ -5,7 +5,6 @@ import std.conv;
 class KTyp : KNode{
 	EKind kind;
 	int size;
-	//string baseName;
 	KTyp base;
 	
 	
@@ -55,17 +54,6 @@ KTyp reqTyp(KNode node){
 	return null;
 }
 
-/*
-string reqTypName(){
-	string t = reqIdent;
-	if(t!="vec")return t;
-	req('[');
-	int siz = reqNum(1, MAX_VEC_SIZE);
-	req(']');
-	t = "vec[" ~ to!string(siz) ~ "]";
-	return t;
-}
-*/
 
 class KMethod : KNode{
 	KTyp[] argTyps;
@@ -176,6 +164,37 @@ void ProcKW_Unit_WireOrLatch(KUnit parent, bool isWire){
 	base.storage = isWire ? KVar.EStor.kwire : KVar.EStor.klatch;
 
 	ReadScopedVarDecls(parent, base);
+}
+
+void ProcKW_Intf_Clock(KIntf intf){
+	KClock clk = new KClock;
+	clk.readUniqName(intf);
+	req(';');
+}
+
+
+void ProcKW_Intf_InOut(KIntf intf, bool isIn){
+	KVar base = new KVar;
+	base.Is.isIn = isIn;
+	base.Is.isOut = !isIn;
+	
+	auto cases = ["reg", "wire", "latch"];
+	switch(reqAmong(cases)){
+		case "reg":	
+			base.storage = KVar.EStor.kreg;
+			req('<');	base.clock = reqIdent; req('>');
+			ReadScopedVarDecls(intf, base);
+			break;
+		case "wire":
+			base.storage = KVar.EStor.kwire;
+			ReadScopedVarDecls(intf, base);
+			break;
+		case "latch":
+			base.storage = KVar.EStor.klatch;
+			ReadScopedVarDecls(intf, base);
+			break;
+		default: 		errInternal;
+	}
 }
 
 

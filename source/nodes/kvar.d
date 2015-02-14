@@ -5,26 +5,20 @@ import common;
 
 
 class KVar : KNode{
-	//string typName;
 	KTyp typ;
 	EStor storage;
 	string clock;
 	Token[] reset;
 	VarFlags Is;
-	//KNode writer;
-	//KExpr resetExpr;
+	KNode writer;
+	//KExpr resetExpr; FIXME re-add
 	
 	enum EStor{
 		kinvalid,
 		kreg,
 		kwire,
 		klatch,
-		//kclock,
 		kvar,
-		//ksubu,
-		//kfifo,
-		//kram,
-		//krom
 	}
 	
 	struct VarFlags{
@@ -38,11 +32,9 @@ class KVar : KNode{
 	}
 }
 
-KVar FindVar(KNode node, string name){
-	KNode n = node.findNode(name);
-	if(!n) err("Cannot find variable");
-	KVar v = cast(KVar)n;
-	if(!v) err("Identifier is not a valid variable");
+KVar reqFindVar(KNode node, string name){
+	KVar v = node.findNode!KVar(name);
+	if(!v) err("Cannot find variable");
 	return v;
 }
 

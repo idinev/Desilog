@@ -5,38 +5,6 @@ class KIntf : KNode{
 
 }
 
-void ProcKWIntf_Clock(KIntf intf){
-	KClock clk = new KClock;
-	clk.readUniqName(intf);
-	req(';');
-}
-
-
-private{
-	void ProcKW_Intf_InOut(KIntf intf, bool isIn){
-		KVar base = new KVar;
-		base.Is.isIn = isIn;
-		base.Is.isOut = !isIn;
-
-		auto cases = ["reg", "wire", "latch"];
-		switch(reqAmong(cases)){
-			case "reg":	
-				base.storage = KVar.EStor.kreg;
-				req('<');	base.clock = reqIdent; req('>');
-				ReadScopedVarDecls(intf, base);
-				break;
-			case "wire":
-				base.storage = KVar.EStor.kwire;
-				ReadScopedVarDecls(intf, base);
-				break;
-			case "latch":
-				base.storage = KVar.EStor.klatch;
-				ReadScopedVarDecls(intf, base);
-				break;
-			default: 		errInternal;
-		}
-	}
-}
 
 
 
@@ -49,7 +17,7 @@ void ProcessKW_Interface(DPFile file){
 		auto cases = ["}", "clock","in","out"];
 		switch(reqAmong(cases)){
 			case "}":		return;
-			case "clock":	ProcKWIntf_Clock(intf); break;
+			case "clock":	ProcKW_Intf_Clock(intf); break;
 			case "in":		ProcKW_Intf_InOut(intf, true); break;
 			case "out":		ProcKW_Intf_InOut(intf, false); break;   
 			default: 		errInternal;
@@ -102,7 +70,6 @@ void ProcKW_RAM(KUnit unit){
 
 class KProcess : KNode{
 	KClock clk;
-	//string clk;
 }
 
 void ProcKW_OnClock(KUnit unit){
@@ -114,8 +81,6 @@ void ProcKW_OnClock(KUnit unit){
 }
 
 class KSubUnit : KNode{
-	string URI;
-	//string intfName;
 	KIntf intf;
 	int arrayLen;
 }
@@ -168,4 +133,8 @@ void ProcKW_Unit(DPFile file){
 			default: 	errInternal;
 		}
 	}
+
+	// FIXME: elaborate OnClock etc here
+
+
 }

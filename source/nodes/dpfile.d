@@ -33,7 +33,6 @@ void ProcKW_Import(KNode parent, DProj proj){
 
 
 class KTestBench : KNode{
-	//string intfName;
 	KIntf intf;
 
 	Token[] force;
@@ -143,17 +142,7 @@ void OnAddProjUnit(DProj proj, string uri){
 		}
 	}
 
-	// find other packages to load
-	foreach(p; file.kids){
-		KImport imp = cast(KImport)p;
-		if(!imp)continue;
-		if(proj.findNode(imp.name, typeid(DPFile)))continue;
-
-		OnAddProjPack(proj, imp.name);
-	}
-
-
-
+	 
 	/*
 	// find other units to load
 	foreach(u; file.kids){ // foreach process

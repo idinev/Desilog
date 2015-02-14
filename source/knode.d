@@ -13,12 +13,6 @@ public class KNode{
 	KNode parent;
 	bool wasVisited;
 
-	/*void init(KNode parent){
-		this.parent = parent;
-		this.name = cc.str;
-		parent.addKid(this);
-	}*/
-
 	KNode findImportedNode(string name){
 		return null;
 	}
@@ -28,10 +22,6 @@ public class KNode{
 		do{
 			foreach(n; cur.kids){
 				if(name == n.name) return n;
-				//if(cast(DPFile)n){
-				//	KNode r = n.findNode(name);
-				//	if(r) return r;
-				//}
 			}
 			cur = cur.parent;
 		}while(cur);
@@ -46,10 +36,6 @@ public class KNode{
 					T t = cast(T)n;
 					if(t)return t;
 				}
-				//if(cast(DPFile)n){
-				//	KNode r = n.findNode(name);
-				//	if(r) return r;
-				//}
 			}
 			KNode imp = cur.findImportedNode(name);
 			if(imp){
@@ -67,10 +53,6 @@ public class KNode{
 		do{
 			foreach(n; cur.kids){
 				if(name == n.name && cls == n.classinfo) return n;
-				//if(cast(DPFile)n){
-				//	KNode r = n.findNode(name, cls);
-				//	if(r) return r;
-				//}
 			}
 			cur = cur.parent;
 		}while(cur);
