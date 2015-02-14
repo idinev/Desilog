@@ -10,6 +10,11 @@ Token cc;
 
 alias typeof(uint.sizeof) zint;
 
+struct IdxTok{
+	zint firstTok;
+}
+
+
 enum MAX_VEC_SIZE = 64;
 enum MAX_ARRAY_SIZE = 1024;
 
@@ -51,6 +56,11 @@ Token gtok(){
 	cc = t;
 	return t;
 }
+
+void StartOnTokens(Token[] toks){
+	curTokenizer = toks[0].parent; // FIXME implement
+}
+
 
 bool peek(char exp){
 	if(cc.typ == exp){
@@ -139,19 +149,21 @@ zint reqTermTok(char terminator, char terminator2, ref char lastChar){
 	return 0;
 }
 
-Token[] reqTermCurly(){
+IdxTok reqTermCurly(){
 	req('{');
 	char lastChar;
-	zint start = curTokenizer.readIdx;
+	zint start = curTokenizer.readIdx - 1;
 	zint end = reqTermTok('}','}', lastChar);
-	return curTokenizer.allToks[start..end];
+	IdxTok res;	res.firstTok = start;
+	return res;
 }
 
-Token[] reqTermRange(char term1, char term2, ref char lastChar){
+IdxTok reqTermRange(char term1, char term2, ref char lastChar){
 	zint start = curTokenizer.readIdx - 1;
 	zint end = reqTermTok(term1,term2, lastChar);
 	if(start == end) err("Expression is too short");
-	return curTokenizer.allToks[start..end];
+	IdxTok res;	res.firstTok = start;
+	return res;
 }
 
 void errInternal(){

@@ -68,6 +68,16 @@ void ProcKW_RAM(KUnit unit){
 }
 
 class KScope : KNode{
+	IdxTok curlyStart;
+	KStmt[] code;
+
+	override void dump(int tab){
+		super.dump(tab);
+		foreach(k; code){
+			foreach(i;0..tab+1) write("\t");
+			writeln(name, " (", k.classinfo, ")");
+		}
+	}
 }
 
 class KProcess : KScope{
@@ -78,15 +88,15 @@ void ProcKW_OnClock(KUnit unit){
 	KProcess proc = new KProcess;
 	proc.readUniqName(unit);
 	req('<');	proc.clk = reqNode!KClock(unit);	req('>');
-	proc.toks = reqTermCurly();
+	proc.curlyStart = reqTermCurly();
 
 }
 
-class KSubUnit : KNode{
+class KSubUnit : KHandle{
 	KIntf intf;
-	int arrayLen;
 }
 class KLink : KNode{
+	IdxTok curlyStart;
 }
 
 void ProcKW_SubUnit(KUnit unit){
@@ -94,16 +104,26 @@ void ProcKW_SubUnit(KUnit unit){
 	sub.intf = reqNode!KIntf(unit);
 	sub.readName(unit);
 	if(peek('[')){
+		sub.isArray = true;
 		sub.arrayLen = reqGetConstIntegerExpr(1,1024);
 		req(']');
 	}
 	req(';');
+
+	foreach(port; sub.intf.kids){
+		if(cast(KVar)port){
+			KVar v = cast(KVar)port;
+			sub.addProp(v.name, v.typ, v.Is.isOut);
+		}else if(cast(KClock)port){
+			// nothing to do? FIXME
+		}
+	}
 }
 
 void ProcKW_Link(KUnit unit){
 	KLink link = new KLink;
 	unit.addKid(link);
-	link.toks = reqTermCurly();
+	link.curlyStart = reqTermCurly();
 }
 
 void ProcKW_Unit(DPFile file){
@@ -135,8 +155,4 @@ void ProcKW_Unit(DPFile file){
 			default: 	errInternal;
 		}
 	}
-
-	// FIXME: elaborate OnClock etc here
-
-
 }

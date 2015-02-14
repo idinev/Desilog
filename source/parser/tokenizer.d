@@ -105,6 +105,11 @@ class Tokenizer
 	void back(){
 		tok = allToks[--readIdx];
 	}
+
+	void startFrom(IdxTok idx){
+		readIdx = idx.firstTok;
+		gtok;
+	}
 	
 	void tokenize(){
 		src = GetFilePaddedString(fileName);

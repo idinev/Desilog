@@ -8,7 +8,7 @@ class KVar : KNode{
 	KTyp typ;
 	EStor storage;
 	string clock;
-	Token[] reset;
+	IdxTok reset;
 	VarFlags Is;
 	KScope writer;
 	//KExpr resetExpr; FIXME re-add

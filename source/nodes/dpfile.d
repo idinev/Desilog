@@ -35,7 +35,7 @@ void ProcKW_Import(KNode parent, DProj proj){
 class KTestBench : KNode{
 	KIntf intf;
 
-	Token[] force;
+	IdxTok force;
 	Verify vfy;
 
 	struct Verify{
@@ -43,7 +43,7 @@ class KTestBench : KNode{
 		int offset, latency;
 		string[] ins;
 		string[] outs;
-		Token[] table;
+		IdxTok table;
 	}
 }
 
@@ -115,6 +115,8 @@ DPFile OnAddProjPack(DProj proj, string uri){
 	curTokenizer.back();
 	gtok;
 
+	file.dump(0);
+
 	return file;
 }
 
@@ -139,6 +141,21 @@ void OnAddProjUnit(DProj proj, string uri){
 			case "import":			ProcKW_Import(file, proj);break;
 			case "testbench":		ProcKW_Testbench(file); break;
 			default:	errInternal;
+		}
+	}
+
+	file.dump(0);
+
+
+	foreach(u; file.kids){
+		KUnit unit = cast(KUnit)u; if(!unit)continue;
+
+		// elaborate processes
+		foreach(p; unit.kids){
+			KProcess proc = cast(KProcess)p; if(!proc) continue;
+			curTokenizer.startFrom(proc.curlyStart);
+
+			proc.code = ReadStatementList(proc);
 		}
 	}
 

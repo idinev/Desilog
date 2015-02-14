@@ -8,7 +8,6 @@ import core.runtime;
 
 public class KNode{
 	string name;
-	Token[] toks; // range of tokens affecting by this node
 	KNode[] kids;
 	KNode parent;
 	bool wasVisited;
@@ -23,6 +22,8 @@ public class KNode{
 			foreach(n; cur.kids){
 				if(name == n.name) return n;
 			}
+			KNode imp = cur.findImportedNode(name);
+			if(imp)return imp;
 			cur = cur.parent;
 		}while(cur);
 		return null;
@@ -68,6 +69,14 @@ public class KNode{
 		return null;
 	}
 
+	final int getKid(string name){
+		foreach(int i, k; kids){
+			if(name == k.name) return i;
+		}
+		return -1;
+	}
+
+
 	final void addKid(KNode kid){
 		kid.parent = this;
 		kids ~= kid;
@@ -84,7 +93,7 @@ public class KNode{
 		parent.addKid(this);
 	}
 
-	final void dump(int tab){
+	void dump(int tab){
 		foreach(i;0..tab) write("\t");
 		writeln(name, " (", this.classinfo, ")");
 		foreach(k;kids){

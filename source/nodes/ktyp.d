@@ -60,19 +60,27 @@ class KMethod : KNode{
 	KTyp retTyp;
 }
 
-class KProp : KNode{
-	bool readOnly;
-	KTyp typ;
-}
 
 class KHandle : KNode{
-	class Prop{
-		string name;
+	bool isArray;
+	int arrayLen;
+
+	final void addProp(string name, KTyp typ, bool readOnly){
+		KVar p = new KVar;
+		p.parent = this;
+		p.name = name;
+		p.typ = typ;
+		p.Is.readOnly = readOnly;
+		kids ~= p;
 	}
 }
 
 class KClock : KHandle{
-	
+	this(){
+		KTyp bit = getCustomSizedVec(1);
+		addProp("clk", 	  bit, true);
+		addProp("active", bit, true);
+	}
 }
 
 class KEnumEntry : KNode{
