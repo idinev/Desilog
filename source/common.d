@@ -1,5 +1,7 @@
 module common;
 public import std.stdio;
+public import parser.expr;
+public import parser.stmt;
 public import parser.token;
 public import parser.tokenizer;
 public import knode;

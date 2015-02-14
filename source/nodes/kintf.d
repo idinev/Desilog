@@ -62,13 +62,15 @@ void ProcKW_RAM(KUnit unit){
 	ram.typ = reqTyp(unit);
 	ram.readUniqName(unit);
 	req('[');
-	ram.size = reqNum(1,4*1024*1024);
+	ram.size = reqGetConstIntegerExpr(1,4*1024*1024);
 	req(']');
 	req(';');
 }
 
+class KScope : KNode{
+}
 
-class KProcess : KNode{
+class KProcess : KScope{
 	KClock clk;
 }
 
@@ -92,7 +94,7 @@ void ProcKW_SubUnit(KUnit unit){
 	sub.intf = reqNode!KIntf(unit);
 	sub.readName(unit);
 	if(peek('[')){
-		sub.arrayLen = reqNum(1,1024);
+		sub.arrayLen = reqGetConstIntegerExpr(1,1024);
 		req(']');
 	}
 	req(';');

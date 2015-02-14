@@ -71,9 +71,9 @@ void ProcKW_Testbench(DPFile file){
 				break;
 			case "verify":
 				req('(');
-				tb.vfy.offset = reqNum(0,100000);
+				tb.vfy.offset = reqGetConstIntegerExpr(0,100000);
 				req(',');
-				tb.vfy.latency = reqNum(0,1000);
+				tb.vfy.latency = reqGetConstIntegerExpr(0,1000);
 				req(')'); 
 				req("in");  req('('); tb.vfy.ins  = reqListOfIdents(); req(')');
 				req("out"); req('('); tb.vfy.outs = reqListOfIdents(); req(')');

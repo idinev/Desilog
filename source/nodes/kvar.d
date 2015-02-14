@@ -10,7 +10,7 @@ class KVar : KNode{
 	string clock;
 	Token[] reset;
 	VarFlags Is;
-	KNode writer;
+	KScope writer;
 	//KExpr resetExpr; FIXME re-add
 	
 	enum EStor{

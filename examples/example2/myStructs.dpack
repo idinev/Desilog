@@ -1,7 +1,6 @@
 type CmdType vec[4];
 
-//type nn vec[15+10*2+(4)];
-type nn vec[30];
+type nn vec[15+10*2+(4)];
 
 struct CPUCtrl{
 	CmdType cmd;

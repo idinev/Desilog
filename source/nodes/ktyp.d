@@ -38,7 +38,7 @@ KTyp reqTyp(KNode node){
 
 	if(name == "vec"){
 		req('[');
-		int siz = reqNum(1, MAX_VEC_SIZE);
+		int siz = reqGetConstIntegerExpr(1, MAX_VEC_SIZE);
 		req(']');
 		return getCustomSizedVec(siz);
 	}
@@ -140,7 +140,7 @@ void ProcKW_Type(KNode parent){
 	typ.base = reqTyp(parent);
 	typ.kind = KTyp.EKind.karray;
 	if(peek('[')){
-		typ.size = reqNum(1, MAX_ARRAY_SIZE);
+		typ.size = reqGetConstIntegerExpr(1, MAX_ARRAY_SIZE);
 		req(']');
 	}else{
 		// is an alias, copy contents instead

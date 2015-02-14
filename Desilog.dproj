@@ -29,6 +29,7 @@
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <DebugLevel>0</DebugLevel>
+    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -40,6 +41,7 @@
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <DebugLevel>0</DebugLevel>
+    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="source\app.d" />
@@ -52,5 +54,7 @@
     <Compile Include="source\nodes\kvar.d" />
     <Compile Include="source\parser\token.d" />
     <Compile Include="source\parser\tokenizer.d" />
+    <Compile Include="source\parser\expr.d" />
+    <Compile Include="source\parser\stmt.d" />
   </ItemGroup>
 </Project>
