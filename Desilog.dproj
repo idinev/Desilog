@@ -56,5 +56,9 @@
     <Compile Include="source\parser\tokenizer.d" />
     <Compile Include="source\parser\expr.d" />
     <Compile Include="source\parser\stmt.d" />
+    <Compile Include="source\gen\gen_vhdl.d" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="source\gen\" />
   </ItemGroup>
 </Project>

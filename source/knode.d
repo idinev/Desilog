@@ -100,6 +100,18 @@ public class KNode{
 			k.dump(tab+1);
 		}
 	}
+
+	// foreach helper
+	int opApply(T)(int delegate(ref T) dg){
+		for (int i = 0; i < kids.length; i++){
+			T t = cast(T)kids[i];
+			if(t){ 
+				int result = dg(t);
+				if (result) return result;
+			}
+		}
+		return 0;
+	}
 }
 
 

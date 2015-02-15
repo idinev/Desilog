@@ -17,7 +17,9 @@ void main() {
 		
 		OnAddProjUnit(proj, "example2.example2");
 		writeln("Success");		
-		proj.dump(0);
+		//proj.dump(0);
+		GenerateAllVHDL(proj);
+
 	} catch (Exception e) {
 		writeln("bad stuff: ", e.msg);
 		if(1){

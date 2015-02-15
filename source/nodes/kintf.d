@@ -75,7 +75,7 @@ class KScope : KNode{
 		super.dump(tab);
 		foreach(k; code){
 			foreach(i;0..tab+1) write("\t");
-			writeln(name, " (", k.classinfo, ")");
+			writeln(k.classinfo);
 		}
 	}
 }

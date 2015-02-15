@@ -11,4 +11,5 @@ public import nodes.kintf;
 public import nodes.ktyp;
 public import nodes.kvar;
 
+public import gen.gen_vhdl;
 

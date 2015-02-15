@@ -9,6 +9,23 @@ struct XOffset{
 	int idx;  // constant offset. arg=null
 };
 
+
+/* FIXME: switch to these new ones
+class KArg2{
+	KTyp finalTyp;
+	XOffset[] offsets;
+
+	void printVHDL(){	errInternal; }
+}
+
+class KArgVar : KArg2{
+	KVar var;
+}
+class KArgSubuPort : KArg2{
+	KSubUnit sub;
+}*/
+
+
 class KArg{
 	KVar var;
 	KHandle obj;

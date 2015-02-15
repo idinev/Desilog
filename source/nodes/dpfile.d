@@ -115,7 +115,7 @@ DPFile OnAddProjPack(DProj proj, string uri){
 	curTokenizer.back();
 	gtok;
 
-	file.dump(0);
+	//file.dump(0);
 
 	return file;
 }
@@ -144,12 +144,12 @@ void OnAddProjUnit(DProj proj, string uri){
 		}
 	}
 
-	file.dump(0);
+	//file.dump(0);
 
 
 	foreach(u; file.kids){
 		KUnit unit = cast(KUnit)u; if(!unit)continue;
-
+	
 		// elaborate processes
 		foreach(p; unit.kids){
 			KProcess proc = cast(KProcess)p; if(!proc) continue;
