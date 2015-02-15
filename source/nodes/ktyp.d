@@ -65,6 +65,10 @@ class KHandle : KNode{
 	bool isArray;
 	int arrayLen;
 
+	bool isPort;
+	bool isInPort;
+	bool isOutPort;
+
 	final void addProp(string name, KTyp typ, bool readOnly){
 		KVar p = new KVar;
 		p.parent = this;
@@ -161,6 +165,7 @@ void ProcKW_Type(KNode parent){
 
 void ProcKW_Unit_Reg(KUnit parent){
 	KVar base = new KVar;
+	base.Is.signal = true;
 	base.storage = KVar.EStor.kreg;
 	req('<');	base.clock = reqIdent; req('>');
 
@@ -169,6 +174,7 @@ void ProcKW_Unit_Reg(KUnit parent){
 
 void ProcKW_Unit_WireOrLatch(KUnit parent, bool isWire){
 	KVar base = new KVar;
+	base.Is.signal = true;
 	base.storage = isWire ? KVar.EStor.kwire : KVar.EStor.klatch;
 
 	ReadScopedVarDecls(parent, base);
@@ -177,13 +183,17 @@ void ProcKW_Unit_WireOrLatch(KUnit parent, bool isWire){
 void ProcKW_Intf_Clock(KIntf intf){
 	KClock clk = new KClock;
 	clk.readUniqName(intf);
+	clk.isPort = true;
+	clk.isInPort = true;
 	req(';');
 }
 
 
 void ProcKW_Intf_InOut(KIntf intf, bool isIn){
 	KVar base = new KVar;
+	base.Is.port = true;
 	base.Is.isIn = isIn;
+	base.Is.readOnly = isIn;
 	base.Is.isOut = !isIn;
 	
 	auto cases = ["reg", "wire", "latch"];

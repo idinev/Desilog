@@ -51,8 +51,8 @@ unit example2{
 		
 		dd.c = 0;
 		
-		if bbb[3]{
-			//ccc = 0;
+		if bbb[7]{
+			ccc = 0;
 		}
 		//ccc[6] ?= dd.c[5] ? aaa[6] : bbb[7];
 		

@@ -147,12 +147,12 @@ void OnAddProjUnit(DProj proj, string uri){
 	//file.dump(0);
 
 
-	foreach(u; file.kids){
-		KUnit unit = cast(KUnit)u; if(!unit)continue;
-	
+	foreach(KUnit unit; file){
+		// copy variables/clocks/etc
+		unit.kids ~= unit.intf.kids;
+
 		// elaborate processes
-		foreach(p; unit.kids){
-			KProcess proc = cast(KProcess)p; if(!proc) continue;
+		foreach(KProcess proc; unit){
 			curTokenizer.startFrom(proc.curlyStart);
 
 			proc.code = ReadStatementList(proc);
