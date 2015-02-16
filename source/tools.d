@@ -166,6 +166,18 @@ IdxTok reqTermRange(char term1, char term2, ref char lastChar){
 	return res;
 }
 
+string[] reqListOfIdents(){
+	string[] res;
+	for(;;){
+		string s = cc.str;
+		if(!peek(TokTyp.ident))break;
+		res ~= s;
+		if(!peek(','))break;
+	}
+	return res;
+}
+
+
 void errInternal(){
 	err("Internal error");
 }

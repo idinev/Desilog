@@ -1,8 +1,10 @@
 module nodes.kintf;
 import common;
 
-class KIntf : KNode{
+// ==============================[ Intf ]=========================================================
 
+class KIntf : KNode{
+	KUnit unitImpl;
 }
 
 
@@ -25,25 +27,16 @@ void ProcessKW_Interface(DPFile file){
 	}
 }
 
+// ==============================[ RAM ]=========================================================
 
 
-class KUnit : KNode{
-	KIntf intf;
-
-	override KNode findImportedNode(string name){
-		foreach(n; intf.kids){
-			if(n.name == name) return n;
-		}
-		return null;
-	}
-
-}
 
 class KRAM : KHandle{
 	KTyp typ;
 	int size;
 	bool dual;
 	KClock clk, clk2;
+	KScope writer, writer2;
 }
 
 void ProcKW_RAM(KUnit unit){
@@ -67,30 +60,11 @@ void ProcKW_RAM(KUnit unit){
 	req(';');
 }
 
-class KScope : KNode{
-	IdxTok curlyStart;
-	KStmt[] code;
 
-	override void dump(int tab){
-		super.dump(tab);
-		foreach(k; code){
-			foreach(i;0..tab+1) write("\t");
-			writeln(k.classinfo);
-		}
-	}
-}
 
-class KProcess : KScope{
-	KClock clk;
-}
 
-void ProcKW_OnClock(KUnit unit){
-	KProcess proc = new KProcess;
-	proc.readUniqName(unit);
-	req('<');	proc.clk = reqNode!KClock(unit);	req('>');
-	proc.curlyStart = reqTermCurly();
 
-}
+// ==============================[ Sub-unit instance ]=======================================================
 
 class KSubUnit : KHandle{
 	KIntf intf;
@@ -126,11 +100,51 @@ void ProcKW_Link(KUnit unit){
 	link.curlyStart = reqTermCurly();
 }
 
+
+// ==============================[ Scope ]=========================================================
+
+class KScope : KNode{
+	IdxTok curlyStart;
+	KStmt[] code;
+	
+	override void dump(int tab){
+		super.dump(tab);
+		foreach(k; code){
+			foreach(i;0..tab+1) write("\t");
+			writeln(k.classinfo);
+		}
+	}
+}
+
+class KProcess : KScope{
+	KClock clk;
+}
+
+void ProcKW_OnClock(KUnit unit){
+	KProcess proc = new KProcess;
+	proc.readUniqName(unit);
+	req('<');	proc.clk = reqNode!KClock(unit);	req('>');
+	proc.curlyStart = reqTermCurly();
+}
+// ==============================[ UNIT ]=========================================================
+
+class KUnit : KNode{
+	KIntf intf;
+}
+
+
 void ProcKW_Unit(DPFile file){
 	KUnit unit = new KUnit;
-	unit.readName(file);
-	unit.intf = file.findNode!KIntf(unit.name);
+	string intfName = reqIdent;
+
+	unit.intf = file.findNodeOfKind!KIntf(intfName);
 	if(!unit.intf)err("Cannot find interface for this unit");
+	if(unit.intf.unitImpl) err("Implementation of this interface already exists");
+	unit.intf.unitImpl = unit; // pair-up
+	file.addKid(unit);
+
+	// copy variables/clocks/etc
+	unit.kids ~= unit.intf.kids;
 
 	req('{');
 	

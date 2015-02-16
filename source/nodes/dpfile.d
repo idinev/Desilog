@@ -4,14 +4,20 @@ import common;
 import nodes.kintf;
 import std.algorithm;
 
+
+class DProj : KNode{
+	
+}
+
 class DPFile : KNode{
 	Tokenizer tokzer;
 	bool isUnit;
 
-	override KNode findImportedNode(string name){
-		foreach(k; kids){
-			KImport imp = cast(KImport)k;
-			if(!imp)continue;
+	override KNode findNode(string name){
+		foreach(n; kids){
+			if(name == n.name)return n;
+		}
+		foreach(KImport imp; this){
 			foreach(n; imp.mod.kids){
 				if(n.name == name) return n;
 			}
@@ -19,6 +25,10 @@ class DPFile : KNode{
 		return null;
 	}
 }
+
+class KImport : KNode{
+	DPFile mod;
+} 
 
 void ProcKW_Import(KNode parent, DProj proj){
 	KImport imp = new KImport;
@@ -31,6 +41,7 @@ void ProcKW_Import(KNode parent, DProj proj){
 	parent.addKid(imp);
 }
 
+// ===============================================================
 
 class KTestBench : KNode{
 	KIntf intf;
@@ -47,16 +58,6 @@ class KTestBench : KNode{
 	}
 }
 
-string[] reqListOfIdents(){
-	string[] res;
-	for(;;){
-		string s = cc.str;
-		if(!peek(TokTyp.ident))break;
-		res ~= s;
-		if(!peek(','))break;
-	}
-	return res;
-}
 
 void ProcKW_Testbench(DPFile file){
 	KTestBench tb = new KTestBench;
@@ -84,6 +85,7 @@ void ProcKW_Testbench(DPFile file){
 	}
 }
 
+// ===============================================================
 
 DPFile OnAddProjPack(DProj proj, string uri){
 	DPFile file = new DPFile;
@@ -148,9 +150,6 @@ void OnAddProjUnit(DProj proj, string uri){
 
 
 	foreach(KUnit unit; file){
-		// copy variables/clocks/etc
-		unit.kids ~= unit.intf.kids;
-
 		// elaborate processes
 		foreach(KProcess proc; unit){
 			curTokenizer.startFrom(proc.curlyStart);
@@ -161,6 +160,7 @@ void OnAddProjUnit(DProj proj, string uri){
 
 	 
 	/*
+	 * FIXME
 	// find other units to load
 	foreach(u; file.kids){ // foreach process
 		KUnit unit = cast(KUnit)u;

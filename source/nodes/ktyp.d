@@ -47,7 +47,7 @@ KTyp reqTyp(KNode node){
 		if(name == t.name)return t;
 	}
 
-	KTyp t = node.findNode!KTyp(name);
+	KTyp t = node.findNodeOfKind!KTyp(name);
 	if(t) return t;
 
 	err("Cannot find type");

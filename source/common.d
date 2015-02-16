@@ -10,6 +10,7 @@ public import nodes.dpfile;
 public import nodes.kintf;
 public import nodes.ktyp;
 public import nodes.kvar;
+public import nodes.karg;
 
 public import gen.gen_vhdl;
 

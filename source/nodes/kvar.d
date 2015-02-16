@@ -33,7 +33,7 @@ class KVar : KNode{
 }
 
 KVar reqFindVar(KNode node, string name){
-	KVar v = node.findNode!KVar(name);
+	KVar v = node.findNodeOfKind!KVar(name);
 	if(!v) err("Cannot find variable");
 	return v;
 }

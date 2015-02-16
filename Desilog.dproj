@@ -57,6 +57,7 @@
     <Compile Include="source\parser\expr.d" />
     <Compile Include="source\parser\stmt.d" />
     <Compile Include="source\gen\gen_vhdl.d" />
+    <Compile Include="source\nodes\karg.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\gen\" />
