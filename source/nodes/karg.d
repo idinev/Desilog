@@ -1,141 +1,113 @@
 ﻿module nodes.karg;
+import std.algorithm;
 import common;
 
 struct XOffset{
-	KExpr arg; // dynamic offset. idx=0
+	KVar sMember; // struct member
+	KExpr exp; // dynamic offset. idx=0
 	int idx;  // constant offset. arg=null
+	int bits; // if is a vector sub-slice
 };
-
-
-/* FIXME: switch to these new ones
-class KArg2{
-	KTyp finalTyp;
-	XOffset[] offsets;
-
-	void printVHDL(){	errInternal; }
-}
-
-class KArgVar : KArg2{
-	KVar var;
-}
-class KArgSubuPort : KArg2{
-	KSubUnit sub;
-}*/
 
 
 class KArg{
-	KVar var;
-	KHandle obj;
-	KMethod call;
 	KTyp finalTyp;
 	XOffset[] offsets;
-	KExpr[] callArgs;
-	
-	bool isStaticVec() const{
-		if(finalTyp.kind != KTyp.EKind.kvec)return false;
-		foreach(ref item; offsets){
-			if(item.arg) return false;
-		}
-		return true;
-	}
-	
-	//final void read(KNode node, bool isDest);
-};
+	KScope proc;
+	bool isDest;
 
-
-
-
-
-KArg ReadArg_Var(KVar var, KNode node, bool isDest){
-	KArg arg = new KArg;
-	arg.var = var;
-	arg.finalTyp = var.typ;
-	
-	if(isDest){
-		UpdateVarWriter(var, node);
-	}else{
-		if(var.Is.writeOnly)err("Write-only variable");
-		var.Is.everRead = 1;
-	}
-	
-	ReadExtraOffsets(arg, node, isDest);
-	
-	return arg;
-	
-	//KVar fvar = var; // final var
-	
-	/*if(fvar.Is.handle){   FIXME restore
-		XOffset arrIdx={null,0};
-		XOffset membIdx={null,0};
-		gtok;
-		if(var.Is.handleArray){
-			reqTok('[');gtok;
-			ReadXOffset(node, arrIdx);
-			reqTok(']');gtok;
-		}
-		reqTok('.'); gtok;
-		ReqGetStructMemberIdx(var.handle, membIdx.idx, fvar);
-		finalTyp = fvar.typ;
-		offsets.append(membIdx);
-		offsets.append(arrIdx); //always add the unit-offset
-	}*/
+	void onWrite(){}
+	void onRead(){}
 }
 
-KArg ReadArg_Handle(KHandle obj, KNode node, bool isDest){
-	XOffset offs;
-	KArg arg = new KArg;
-	arg.obj = obj;
-	
-	if(obj.isArray){
-		req('[');
-		offs = ReadXOffset(node);
-		req(']');
+class KArgVar : KArg{
+	KVar var;
+
+	override void onWrite(){
+		OnVarWrite(var, proc);
 	}
-	arg.offsets ~= offs;
-	
-	req('.');
-	string propName = reqIdent;
-	
-	XOffset memb;
-	
-	memb.idx = obj.getKid(propName);
-	if(memb.idx < 0) err("Invalid property/function");
-	arg.offsets ~= memb;
-	
-	KVar var = cast(KVar) obj.kids[memb.idx];
-	if(var){
+	override void onRead(){
+		OnVarRead(var, proc);
+	}
+}
+
+class KArgSubuPort : KArg{
+	KSubUnit sub;
+
+	XOffset arrIdx;
+	KVar port;
+
+	override void onWrite(){
+		OnVarWrite(port, proc);
+	}
+	override void onRead(){
+		OnVarRead(port, proc);
+	}
+}
+
+class KArgCall : KArg{
+	XOffset funcArgs[];
+}
+
+
+KArg ReadArg(KNode symbol, KNode node, bool isDest){
+	KArg result;
+	if(KVar var = cast(KVar)symbol){
+		KArgVar arg = new KArgVar;
 		arg.var = var;
 		arg.finalTyp = var.typ;
-		if(isDest && var.Is.readOnly) err("Cannot assign to a read-only variable");
-		
-		if(isDest){
-			UpdateVarWriter(var, node);
-		}else{
-			if(var.Is.writeOnly)err("Write-only variable");
-			var.Is.everRead = 1;
+		result = arg;
+	}else if(KSubUnit sub = cast(KSubUnit)symbol){
+		XOffset arrIdx;
+
+		if(sub.isArray){
+			req('[');
+			arrIdx = ReadXOffset(node);
+			req(']');
 		}
-		
-		ReadExtraOffsets(arg, node, isDest);
-		
+		req('.');
+		KNode memb;
+		string mname = reqIdent;
+		foreach(m; sub.kids){
+			if(m.name == mname) memb = m;
+		}
+
+		if(KVar port = cast(KVar)memb){
+			KArgSubuPort subPort = new KArgSubuPort;
+			subPort.sub = sub;
+			subPort.arrIdx = arrIdx;
+			subPort.port = port;
+			subPort.finalTyp = port.typ;
+			result = subPort;
+		}else{
+			err("Unknown port");
+		}
 	}else{
-		KMethod met = cast(KMethod) obj.kids[memb.idx];
-		if(!met) err("Invalid property/function");
-		arg.call = met;
-		notImplemented;
+		err("Unhandled symbol as statement");
 	}
-	
-	
-	return arg;
+
+	result.proc = reqGetRootScope(node);
+	result.isDest = isDest;
+
+	if(isDest){
+		result.onWrite();
+	}else{
+		result.onRead();
+	}
+
+	if(result.finalTyp){
+		ReadExtraOffsets(result, node, isDest);
+	}
+	return result;
 }
 
 XOffset ReadXOffset(KNode node){
 	XOffset res;
-	res.idx = 0;
-	res.arg = ReadExpr(node);
-	if(res.arg.kind == KExpr.ESimple.knum){
-		KExprNum en = cast(KExprNum)res.arg;
+	res.exp = ReadExpr(node);
+	if(res.exp.kind == KExpr.ESimple.knum){
+		KExprNum en = cast(KExprNum)res.exp;
 		res.idx = en.val;
-		res.arg = null;
+		res.exp = null;
 	}
 	return res;
 }
@@ -145,35 +117,36 @@ private{
 		for(;;){
 			
 			if(peek('.')){
-				XOffset off;
 				if(arg.finalTyp.kind == KTyp.EKind.kstruct){
-					KVar memb = ReqGetStructMemberIdx(arg.finalTyp, off.idx);
+					XOffset off;
+					off.sMember = reqGetStructMember(arg.finalTyp);
 					arg.offsets ~= off;
-					arg.finalTyp = memb.typ;
+					arg.finalTyp = off.sMember.typ;
 				}else{
 					err("operator '.' accepts only structures");
 				}
 			}else if(peek('[')){
-				XOffset off;
 				if(arg.finalTyp.kind == KTyp.EKind.karray){
-					notImplemented;
+					XOffset off = ReadXOffset(node);
+					arg.offsets ~= off;
 				}else if(arg.finalTyp.kind == KTyp.EKind.kvec){
 					if(arg.finalTyp.size == 1)err("Cannot slice a single bit");
-					XOffset bitOffs={null,0};
-					XOffset bitSize={null,1};
+					XOffset bitOffs;
 					bitOffs = ReadXOffset(node);
 					if(peek(',')){
-						bitSize = ReadXOffset(node);
+						XOffset bitSize = ReadXOffset(node);
+						if(bitSize.exp) err("Slice size must be constant");
+						if(bitSize.idx < 1 || bitSize.idx > arg.finalTyp.size) err("Slice size out of bounds");
+						bitOffs.bits = bitSize.idx;
+					}else{
+						bitOffs.bits = 1;
 					}
 					req(']');
-					
-					if(bitSize.arg) err("Slice size must be constant");
-					if(bitSize.idx < 1 || bitSize.idx > arg.finalTyp.size) err("Slice size out of bounds");
+
 					// FIXME: more negative checking
-					
+
 					arg.offsets ~= bitOffs;
-					arg.offsets ~= bitSize;
-					arg.finalTyp = getCustomSizedVec(bitSize.idx);
+					arg.finalTyp = getCustomSizedVec(bitOffs.bits);
 				}else{
 					err("operator '[] accepts only arrays or vectors");
 				}
@@ -196,38 +169,39 @@ private{
 		return cast(KScope) found;
 	}
 	
-	void UpdateVarWriter(KVar var, KNode curWriterChild){
+	void OnVarWrite(KVar var, KScope writer){
 		if(var.Is.readOnly) err("Read-only variable");
-		KScope writer;
+
 		KScope prevWr = var.writer;
-		writer = reqGetRootScope(curWriterChild);
 		if(prevWr && prevWr != writer){
 			err("Signal already written in another process: ", prevWr.name);
 		}
-		KProcess proc = cast(KProcess)writer;
-		if(proc){
+		var.writer = writer;
+
+		if(KProcess process = cast(KProcess)writer){
 			if(var.storage == KVar.EStor.kreg){
-				if(var.clock != proc.clk.name){
+				if(var.clock != process.clk.name){
 					err("Signal cannot be written in this process, "
-						"as it uses a different clock: ", proc.clk.name);
+						"as it uses a different clock: ", process.clk.name);
 				}
 			}
 		}
-		
-		var.writer = writer;
 	}
-	
-	KVar ReqGetStructMemberIdx(KNode struc, ref int resIdx){
+	void OnVarRead(KVar var, KScope reader){
+		if(var.Is.writeOnly)err("Write-only variable");
+		var.Is.everRead = true;
+
+		if(!reader.varsRead.canFind(var)){
+			reader.varsRead ~= var;
+		}
+	}
+
+	KVar reqGetStructMember(KNode struc){
 		string mname = reqIdent;
-		foreach(int midx, n; struc.kids){
-			KVar v = cast(KVar)n; if(!v)continue;
-			if(mname == v.name){
-				resIdx = midx;
-				return v;
-			}
+		foreach(KVar v; struc){
+			if(mname == v.name) return v;
 		}
 		err("Unknown structure member");
 		return null;
 	}
-
 }

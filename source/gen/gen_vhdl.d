@@ -30,6 +30,9 @@ private{
 		foreach(i; 0..mIndent) vhdlOut.writef("\t");
 		vhdlOut.writef(args);
 	}
+	void xnewline(){
+		vhdlOut.writef("\n");
+	}
 }
 
 
@@ -53,7 +56,7 @@ private{
 			xline("use work.%s.all;",VhdlPackFromURI(imp.name));
 		}
 
-		xline("");
+		xnewline();
 	}
 
 	/*
@@ -182,6 +185,28 @@ private{
 		return "";
 	}
 
+	void PrintTypeZeroInitter(KTyp typ){
+		if(typ.kind == KTyp.EKind.kvec){
+			WriteSizedVectorNum(typ.size, 0);
+		}else if(typ.kind == KTyp.EKind.kenum){
+			xput("%s_%s", typ.name, typ.kids[0].name);
+		}else if(typ.kind == KTyp.EKind.karray){
+			xput("( others => ");
+			PrintTypeZeroInitter(typ.base);
+			xput(")");
+		}else if(typ.kind == KTyp.EKind.kstruct){
+			xput("(");
+			int midx=0;
+			foreach(KVar m; typ){
+				if(midx) xput(",");
+				midx++;
+				PrintTypeZeroInitter(m.typ);
+			}
+		}else{
+			notImplemented;
+		}
+	}
+
 	void PrintSensitivityList(KNode scop){
 		xput("all");
 		/*
@@ -196,6 +221,45 @@ private{
 				xput("%s%s", prefix, v->name);
 			}
 		}*/
+	}
+
+
+	void PrintPreloadLatchesAndWires(KNode nodeWithVars, KScope scop){
+		foreach(KVar latch; nodeWithVars){
+			if(latch.Is.readOnly)continue;
+			if(latch.storage != KVar.EStor.klatch)continue;
+			if(latch.writer != scop)continue;
+			string prefix = GetSpecialVarPrefix(latch, true);
+			xline("%s%s <= %s%s", prefix, latch.name, prefix, latch.name);
+			if(latch.resetExpr){
+				if(KProcess proc = cast(KProcess)scop){
+					xput("when %s_reset_n='1' else ", proc.clk.name);
+					PrintSetStatementSrc(latch.typ, latch.resetExpr);
+				}else{
+					err("Latch %s should be written in a clocked process, to have an initial value", latch.name);
+				}
+			}
+			xput("; -- latch preload");
+		}
+		
+		foreach(KVar wire; nodeWithVars){
+			if(wire.Is.readOnly)continue;
+			if(wire.storage != KVar.EStor.kwire)continue;
+			if(wire.writer != scop)continue;
+			string prefix = GetSpecialVarPrefix(wire, true);
+			xline("%s%s <= ", prefix, wire.name);
+			PrintTypeZeroInitter(wire.typ);
+			if(wire.resetExpr){
+				if(KProcess proc = cast(KProcess)scop){
+					xput("when %s_reset_n='1' else ", proc.clk.name);
+					PrintSetStatementSrc(wire.typ, wire.resetExpr);
+				}else{
+					err("Wire %s should be written in a clocked process, to have an initial value", wire.name);
+				}
+			}
+
+			xput("; -- wire pre-zero-init ");
+		}
 	}
 
 	void printVHDL(KIntf k){
@@ -241,17 +305,18 @@ private{
 		foreach(KVar reg; unit){ // find non-input regs with init
 			if(reg.storage != KVar.EStor.kreg) continue;
 			if(reg.Is.readOnly) continue;
-			if(!reg.reset.firstTok) continue;
-			/*assert(reg.initExpr);
-				const char* prefixSrc = GetSpecialVarPrefix(reg, false);
+			if(reg.resetExpr){
+				string prefixSrc = GetSpecialVarPrefix(reg, false);
 				xline("	%s%s <= ", prefixSrc, reg.name);
-				PrintSetStatementSrc(reg.typ, reg.initExpr);
-				xput(";");*/
+				PrintSetStatementSrc(reg.typ, reg.resetExpr);
+				xput(";");
+			}
 		}
 		xline("else");
 		foreach(KVar reg; unit){ // find non-input regs
 			if(reg.storage != KVar.EStor.kreg) continue;
 			if(reg.Is.readOnly) continue;
+			if(!reg.writer)continue;
 			string prefixSrc = GetSpecialVarPrefix(reg, false);
 			string prefixDst = GetSpecialVarPrefix(reg, true);
 			assert(prefixSrc != prefixDst);
@@ -298,8 +363,8 @@ private{
 
 	void printVHDL(KUnit unit){
 		mIndent = 0;
-		xline("--#------- %s ------------------------------------", unit.name);
-		xline("architecture rtl of %s is", unit.name);
+		xline("--#------- %s ------------------------------------", unit.intf.name);
+		xline("architecture rtl of %s is", unit.intf.name);
 		mIndent = 1;
 		
 		foreach(KTyp t; unit){
@@ -347,7 +412,8 @@ private{
 		
 		mIndent = 0;
 		xline("end architecture;");
-		xline("");
+		xnewline();
+		xnewline();
 
 	}
 	void printVHDL(KProcess proc){
@@ -360,8 +426,8 @@ private{
 			xput("\n	variable %s: %s;", v.name, typName(v.typ));
 		}
 		xput("\n	begin");
-		//PrintPreloadLatchesAndWires(parent, this);
-		
+		PrintPreloadLatchesAndWires(proc, proc);
+
 		foreach(s; proc.code){
 			printVHDL(s);
 		}
@@ -371,7 +437,7 @@ private{
 
 	void printVHDL(KStmtSet a){
 		xline("");
-		a.dst.printVHDL(true);
+		a.dst.printVHDL();
 		PrintSetStatementSrc(a.dst.finalTyp, a.src);
 		xput(";");
 	}
@@ -419,73 +485,92 @@ private{
 		else errInternal;
 	}
 
-	void printVarOffsets(KTyp typ, XOffset[] offsets){
-		for(size_t oi=0; oi < offsets.length; oi++){
-			XOffset off = offsets[oi];
-			if(typ.kind == KTyp.EKind.kstruct){
-				KVar sm = cast(KVar)typ.kids[off.idx];
-				xput(".%s", sm.name);
-				typ = sm.typ;
-			}else if(typ.kind == KTyp.EKind.karray){
-				xput("[");
-				if(off.arg){
-					off.arg.printVHDL();
+	void vhdlArrayIndexOpen(){
+
+	}
+	void vhdlArrayIndexClose(){
+		xput("))");
+	}
+
+	void vhdlPrintConvInteger(KExpr arg){
+		xput("conv_integer(");
+		arg.printVHDL();
+		xput(")");
+	}
+	void vhdlPrintArrayElement(KExpr arg, int idx){
+		if(!arg){
+			xput("(%d)", idx);
+		}else{
+			xput("(conv_integer(");
+			arg.printVHDL();
+			xput("))");
+		}
+	}
+	void vhdlPrintArrayRange(KExpr arg, int idx, int len){
+		if(!arg){
+			xput("(%d downto %d)", idx + len - 1, idx);
+		}else{
+			xput("(%d + ", len-1);
+			vhdlPrintConvInteger(arg);
+			xput(" downto ");
+			vhdlPrintConvInteger(arg);
+			xput(")");
+		}
+	}
+
+
+	void printVarOffsets(XOffset[] offsets){
+		foreach(off; offsets){
+			if(off.bits){
+				if(off.bits == 1){
+					vhdlPrintArrayElement(off.exp, off.idx);
 				}else{
-					xput("%d", off.idx);
+					vhdlPrintArrayRange(off.exp, off.idx, off.bits);
 				}
-				xput("]");
-				typ = typ.base;
-			}else if(typ.kind == KTyp.EKind.kvec){
-				XOffset bsiz = offsets[oi+1];
-				oi++; // consume second offset
-				if(bsiz.idx == 1){
-					if(!off.arg){
-						xput("(%d)", off.idx);
-					}else{
-						xput("(");
-						off.arg.printVHDL();
-						xput(")");
-					}
-				}else{
-					if(!off.arg){
-						xput("(%d downto %d)", off.idx + bsiz.idx - 1, off.idx);
-					}else{
-						xput("((%d + (", bsiz.idx - 1);
-						off.arg.printVHDL();
-						xput(")) downto (");
-						off.arg.printVHDL();
-						xput("))");
-					}
-				}
-				typ = getCustomSizedVec(bsiz.idx);
+			}else if(off.sMember){
+				xput(".%s", off.sMember.name);
+			}else{
+				vhdlPrintArrayElement(off.exp, off.idx);
 			}
 		}
 	}
 
-	void printVHDL(KArg arg, bool isDest) {
-		int firstOffs = 0;
-		if(arg.obj){
-			xput("%s_",arg.obj.name);
-			firstOffs = 2;
-		}
-		string prefix = GetSpecialVarPrefix(arg.var, isDest);
-		xput("%s%s", prefix, arg.var.name);
-		KTyp typ = arg.var.typ;
-
-		printVarOffsets(typ, arg.offsets[firstOffs .. $]);
-
+	void vhdlPrintVarExtra(KVar var, XOffset[] offsets, bool isDest){
+		printVarOffsets(offsets);
+		
 		if(isDest){
-			if(arg.var.storage == KVar.EStor.kvar){
+			if(var.storage == KVar.EStor.kvar){
 				xput(" := ");
 			}else{
 				xput(" <= ");
 			}
 		}
+	}
 
+	void printVHDL(KArgVar arg){
+		string prefix = GetSpecialVarPrefix(arg.var, arg.isDest);
+		xput("%s%s", prefix, arg.var.name);
+
+		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
+	}
+	void printVHDL(KArgSubuPort arg){
+		string prefix = GetSpecialVarPrefix(arg.port, arg.isDest);
+		xput("%s%s_%s", prefix, arg.sub.name, arg.port.name);
+		if(arg.sub.isArray){
+			vhdlPrintArrayElement(arg.arrIdx.exp, arg.arrIdx.idx);
+		}
+
+		vhdlPrintVarExtra(arg.port, arg.offsets, arg.isDest);
+	}
+
+	void printVHDL(KArg arg) {
+			 if(auto a = cast(KArgVar)arg) 		printVHDL(a);
+		else if(auto a = cast(KArgSubuPort)arg) printVHDL(a);
+		else notImplemented;
 	}
 
 	void printVHDL(KExprVar k) {
-		k.arg.printVHDL(false);
+		k.arg.printVHDL();
 	}
 	void printVHDL(KExprUnary k) {
 		xput(" %c",cast(char)k.uniOp);
@@ -627,11 +712,15 @@ private{
 			printVHDLTypeDef(t);
 		}
 		xline("end package;");
+		xnewline();
+		xnewline();
 
 
 		foreach(KIntf intf; pack){
 			PrintVHDLUseHeader(pack);
 			printVHDL(intf);
+			xnewline();
+			xnewline();
 		}
 	}
 
@@ -640,11 +729,15 @@ private{
 		foreach(KUnit unit; funit){
 			PrintVHDLUseHeader(funit);
 			printVHDL(unit);
+			xnewline();
+			xnewline();
 		}
 
 		foreach(KTestBench tb; funit){
 			PrintVHDLUseHeader(funit);
 			printVHDL(tb);
+			xnewline();
+			xnewline();
 		}
 	}
 

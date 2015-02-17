@@ -106,6 +106,8 @@ void ProcKW_Link(KUnit unit){
 class KScope : KNode{
 	IdxTok curlyStart;
 	KStmt[] code;
+
+	KVar[] varsRead;
 	
 	override void dump(int tab){
 		super.dump(tab);

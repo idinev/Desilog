@@ -15,7 +15,8 @@ void main() {
 
 	try {
 		
-		OnAddProjUnit(proj, "example2.example2");
+		//OnAddProjUnit(proj, "example2.example2");
+		OnAddProjUnit(proj, "unittests.ram.ram");
 		writeln("Success");		
 		//proj.dump(0);
 		GenerateAllVHDL(proj);

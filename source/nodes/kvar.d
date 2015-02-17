@@ -11,7 +11,7 @@ class KVar : KNode{
 	IdxTok reset;
 	VarFlags Is;
 	KScope writer;
-	KExpr resetExpr;// FIXME re-add
+	KExpr resetExpr;
 	
 	enum EStor{
 		kinvalid,

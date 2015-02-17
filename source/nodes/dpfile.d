@@ -150,6 +150,11 @@ void OnAddProjUnit(DProj proj, string uri){
 
 
 	foreach(KUnit unit; file){
+		foreach(KVar var; unit){
+			if(!var.reset.firstTok)continue;
+			curTokenizer.startFrom(var.reset);
+			var.resetExpr = ReadExpr(unit);
+		}
 		// elaborate processes
 		foreach(KProcess proc; unit){
 			curTokenizer.startFrom(proc.curlyStart);

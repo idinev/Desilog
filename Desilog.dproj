@@ -49,7 +49,6 @@
     <Compile Include="source\knode.d" />
     <Compile Include="source\tools.d" />
     <Compile Include="source\nodes\dpfile.d" />
-    <Compile Include="source\nodes\kintf.d" />
     <Compile Include="source\nodes\ktyp.d" />
     <Compile Include="source\nodes\kvar.d" />
     <Compile Include="source\parser\token.d" />
@@ -58,6 +57,7 @@
     <Compile Include="source\parser\stmt.d" />
     <Compile Include="source\gen\gen_vhdl.d" />
     <Compile Include="source\nodes\karg.d" />
+    <Compile Include="source\nodes\kunit.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\gen\" />

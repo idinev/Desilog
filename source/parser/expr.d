@@ -49,7 +49,7 @@ int reqGetConstIntegerExpr(int imin, int imax){
 	KNode dummyNode = new KNode;
 	off = ReadXOffset(dummyNode);
 	
-	if(off.arg) err("Constant integer expression required");
+	if(off.exp) err("Constant integer expression required");
 	
 	if(off.idx < imin || off.idx > imax){
 		err("Value out of acceptable range [", imin, ":", imax, "]", imin, imax);
@@ -69,22 +69,12 @@ private{
 			{
 				string symName = reqIdent;
 				KNode symbol = node.findNode(symName);
-				KVar var = cast(KVar)symbol;
-				if(var){
-					KExprVar v = new KExprVar();
-					v.arg = ReadArg_Var(var, node, false);
-					v.finalTyp = v.arg.finalTyp;
-					return v;
-				}
-				KHandle obj = cast(KHandle)symbol;
-				if(obj){
-					KExprVar v = new KExprVar;
-					v.arg = ReadArg_Handle(obj, node, false);
-					v.finalTyp = v.arg.finalTyp;
-					return v;
-				}
-				err("Expected a variable or object");
-				return null;
+				if(!symbol) err("Unknown symbol");
+
+				KExprVar v = new KExprVar();
+				v.arg = ReadArg(symbol, node, false);
+				v.finalTyp = v.arg.finalTyp;
+				return v;
 			}
 			case TokTyp.num:
 			{

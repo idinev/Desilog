@@ -171,6 +171,21 @@ KStmt[] ReadStatementList(KNode node){
 			KArg dst;
 			KNode symbol = node.findNode(word);
 			if(!symbol)err("Unknown symbol");
+			dst = ReadArg(symbol, node, true);
+
+			if(cast(KArgCall)dst){
+
+			}else{
+				if(peek('=')){
+					s = ParseStatementSet(node, dst);
+				}else if(peek("?=")){
+					s = ParseStatementPick(node, dst);
+				}else{
+					err("Accepted statement operators are only = and ?=");
+				}
+			}
+
+			/*
 			if(cast(KVar)symbol){
 				dst = ReadArg_Var(cast(KVar)symbol, node, true);
 			}else if(cast(KHandle)symbol){
@@ -180,13 +195,7 @@ KStmt[] ReadStatementList(KNode node){
 				err("Symbol is not a variable or object");
 			}
 
-			if(peek('=')){
-				s = ParseStatementSet(node, dst);
-			}else if(peek("?=")){
-				s = ParseStatementPick(node, dst);
-			}else{
-				err("Accepted statement operators are only = and ?=");
-			}
+			*/
 			
 			req(';');
 			s.dst = dst;

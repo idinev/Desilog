@@ -1,0 +1,23 @@
+ 
+interface MyRAMUser{
+	clock clk;
+	out reg<clk>{
+		u8 result;
+	}
+}
+
+unit MyRAMUser{
+	reg<clk>{
+		u4 index = 0;
+	}
+	
+	RAM <clk> u8 pamet[16];
+	
+	on_clock main<clk>{
+		result = 0;
+	}
+	
+}
+
+testbench tb_MyRAMUser<MyRAMUser>{
+}
