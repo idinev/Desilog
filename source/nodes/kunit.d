@@ -1,4 +1,4 @@
-module nodes.kintf;
+module nodes.kunit;
 import common;
 
 // ==============================[ Intf ]=========================================================
@@ -37,6 +37,25 @@ class KRAM : KHandle{
 	bool dual;
 	KClock clk, clk2;
 	KScope writer, writer2;
+
+	void populateProps(){
+		int logSize = logNextPow2(size);
+		KTyp addrTyp = getCustomSizedVec(logSize);
+		KTyp[] setAddrArgs = [addrTyp];
+		KTyp[] writeArgs = [typ];
+		if(dual){
+			addProp("data0", typ, true);
+			addProp("data1", typ, true);
+			addMethod("setAddr0", setAddrArgs, null);
+			addMethod("setAddr1", setAddrArgs, null);
+			addMethod("write0", writeArgs, null);
+			addMethod("write1", writeArgs, null);
+		}else{
+			addProp("data", typ, true);
+			addMethod("setAddr", setAddrArgs, null);
+			addMethod("write", writeArgs, null);
+		}
+	}
 }
 
 void ProcKW_RAM(KUnit unit){
@@ -58,6 +77,8 @@ void ProcKW_RAM(KUnit unit){
 	ram.size = reqGetConstIntegerExpr(1,4*1024*1024);
 	req(']');
 	req(';');
+
+	ram.populateProps();
 }
 
 

@@ -185,18 +185,6 @@ KStmt[] ReadStatementList(KNode node){
 				}
 			}
 
-			/*
-			if(cast(KVar)symbol){
-				dst = ReadArg_Var(cast(KVar)symbol, node, true);
-			}else if(cast(KHandle)symbol){
-				KHandle obj = cast(KHandle)symbol;
-				dst = ReadArg_Handle(obj, node, true);
-			}else{
-				err("Symbol is not a variable or object");
-			}
-
-			*/
-			
 			req(';');
 			s.dst = dst;
 		}

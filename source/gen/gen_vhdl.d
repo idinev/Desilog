@@ -33,6 +33,16 @@ private{
 	void xnewline(){
 		vhdlOut.writef("\n");
 	}
+
+	bool _onceTrigered = false;
+	void xonceClear(){
+		_onceTrigered = false;
+	}
+	void xoncePut(string s){
+		if(!_onceTrigered) xput(s);
+		_onceTrigered = true;
+	}
+
 }
 
 
@@ -333,14 +343,17 @@ private{
 			xput("\n	signal %s: %s;", v.name, typName(v.typ));
 		}
 
-		xput("\n	----- internal regs/wires/etc --------");
+		xonceClear();
 		foreach(KVar v; unit){
+			xoncePut("\n	----- internal regs/wires/etc --------");
 			printUnitSignal(v);
 		}
 
-		xput("\n\t----- unit signals -------------");
+		xonceClear();
 		foreach(KHandle h; unit){
 			if(h.isInPort) continue;
+			xoncePut("\n\t----- unit signals -------------");
+
 			if(h.isArray){
 				notImplemented;
 			}
@@ -359,6 +372,7 @@ private{
 				}
 			}
 		}
+
 	}
 
 	void printVHDL(KUnit unit){
@@ -554,18 +568,28 @@ private{
 		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}
 	void printVHDL(KArgSubuPort arg){
-		string prefix = GetSpecialVarPrefix(arg.port, arg.isDest);
-		xput("%s%s_%s", prefix, arg.sub.name, arg.port.name);
+		string prefix = GetSpecialVarPrefix(arg.var, arg.isDest);
+		xput("%s%s_%s", prefix, arg.sub.name, arg.var.name);
 		if(arg.sub.isArray){
 			vhdlPrintArrayElement(arg.arrIdx.exp, arg.arrIdx.idx);
 		}
 
-		vhdlPrintVarExtra(arg.port, arg.offsets, arg.isDest);
+		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
+	}
+
+
+	void printVHDL(KArgRAMDat arg){
+		xput("%s_%s", arg.ram.name, arg.var.name);
+		if(arg.ram.isArray){
+			vhdlPrintArrayElement(arg.arrIdx.exp, arg.arrIdx.idx);
+		}
+		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}
 
 	void printVHDL(KArg arg) {
 			 if(auto a = cast(KArgVar)arg) 		printVHDL(a);
 		else if(auto a = cast(KArgSubuPort)arg) printVHDL(a);
+		else if(auto a = cast(KArgRAMDat)arg)	printVHDL(a);
 		else notImplemented;
 	}
 

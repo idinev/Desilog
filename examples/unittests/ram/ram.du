@@ -15,6 +15,7 @@ unit MyRAMUser{
 	
 	on_clock main<clk>{
 		result = 0;
+		result = pamet.data;
 	}
 	
 }

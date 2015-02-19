@@ -77,6 +77,12 @@ class KHandle : KNode{
 		p.Is.readOnly = readOnly;
 		kids ~= p;
 	}
+	final void addMethod(string name, KTyp[] args, KTyp res){
+		KMethod m = new KMethod;
+		m.argTyps = args;
+		m.retTyp = res;
+		kids ~= m;
+	}
 }
 
 class KClock : KHandle{

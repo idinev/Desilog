@@ -31,22 +31,138 @@ class KArgVar : KArg{
 	}
 }
 
-class KArgSubuPort : KArg{
-	KSubUnit sub;
-
+class KArgObjDat : KArg{
 	XOffset arrIdx;
-	KVar port;
+	KVar var;
+
+	void setup(ref AHanAccess acc){
+		arrIdx = acc.arrIdx;
+		var = acc.var;
+		finalTyp = acc.finalTyp;
+	}
 
 	override void onWrite(){
-		OnVarWrite(port, proc);
+		OnVarWrite(var, proc);
 	}
 	override void onRead(){
-		OnVarRead(port, proc);
+		OnVarRead(var, proc);
 	}
 }
+class KArgObjMethod : KArg{
+	XOffset arrIdx;
+	KMethod method;
+	KExpr[] methodArgs;
+
+	void setup(ref AHanAccess acc){
+		arrIdx = acc.arrIdx;
+		method = acc.method;
+		methodArgs = acc.methodArgs;
+		finalTyp = acc.finalTyp;
+	}
+
+}
+
+class KArgSubuPort : KArgObjDat{
+	KSubUnit sub;
+
+}
+class KArgRAMDat : KArgObjDat{
+	KRAM ram;
+	int portIdx;
+}
+class KArgRAMMeth : KArgObjMethod{
+	int portIdx;
+}
+
 
 class KArgCall : KArg{
-	XOffset funcArgs[];
+	KExpr funcArgs[];
+}
+
+private{
+
+	struct AHanAccess{
+		XOffset arrIdx;
+		KTyp finalTyp;
+		KVar var;
+		KMethod method;
+		KExpr methodArgs[];
+	}
+
+	AHanAccess ReadArg_AHanAccess(KHandle handle, KNode node, bool isDest){
+		AHanAccess res;
+		if(handle.isArray){
+			req('[');
+			res.arrIdx = ReadXOffset(node);
+			if(res.arrIdx.idx < 0 || res.arrIdx.idx >= handle.arrayLen){
+				err("Index out of bounds");
+			}
+			req(']');
+		}
+		req('.');
+		KNode memb;
+		string mname = reqIdent;
+		foreach(m; handle.kids){
+			if(m.name == mname) memb = m;
+		}
+		if(!memb)err("Unknown method/member");
+		if(KVar var = cast(KVar)memb){
+			res.var = var;
+			res.finalTyp = var.typ;
+			if(var.Is.readOnly && isDest)err("Member is read-only");
+			if(var.Is.writeOnly && !isDest) err("Member is write-only");
+		}else if(KMethod met = cast(KMethod)memb){
+			res.method = met;
+			res.finalTyp = met.retTyp;
+			if(!met.retTyp && !isDest)err("Method has no return data");
+			req('(');
+			foreach(int i, arg; met.argTyps){
+				if(i)req(',');
+				res.methodArgs ~= ReadExpr(node);
+			}
+			req(')');
+		}else{
+			errInternal;
+		}
+
+		return res;
+	}
+
+
+
+	KArg ReadArg_SubUnit(KSubUnit sub, KNode node, bool isDest){
+		AHanAccess acc = ReadArg_AHanAccess(sub, node, isDest);
+
+		if(acc.var){
+			KArgSubuPort subPort = new KArgSubuPort;
+			subPort.setup(acc);
+			subPort.sub = sub;
+			return subPort;
+		}else{
+			errInternal;
+		}
+		return null;
+	}
+
+	KArg ReadArg_RAM(KRAM ram, KNode node, bool isDest){
+		AHanAccess acc = ReadArg_AHanAccess(ram, node, isDest);
+
+		if(acc.var){
+			KArgRAMDat rdat = new KArgRAMDat;
+			rdat.setup(acc);
+			rdat.ram = ram;
+			if(acc.var.name == "data1")  rdat.portIdx = 1;
+			return rdat;
+		}else if(acc.method){
+			KArgRAMMeth rmet = new KArgRAMMeth;
+			rmet.setup(acc);
+			if(acc.method.name == "write1" || acc.method.name == "setAddr1") rmet.portIdx = 1;
+		}else{
+			errInternal;
+		}
+
+		return null;
+	}
 }
 
 
@@ -58,30 +174,9 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 		arg.finalTyp = var.typ;
 		result = arg;
 	}else if(KSubUnit sub = cast(KSubUnit)symbol){
-		XOffset arrIdx;
-
-		if(sub.isArray){
-			req('[');
-			arrIdx = ReadXOffset(node);
-			req(']');
-		}
-		req('.');
-		KNode memb;
-		string mname = reqIdent;
-		foreach(m; sub.kids){
-			if(m.name == mname) memb = m;
-		}
-
-		if(KVar port = cast(KVar)memb){
-			KArgSubuPort subPort = new KArgSubuPort;
-			subPort.sub = sub;
-			subPort.arrIdx = arrIdx;
-			subPort.port = port;
-			subPort.finalTyp = port.typ;
-			result = subPort;
-		}else{
-			err("Unknown port");
-		}
+		result = ReadArg_SubUnit(sub, node, isDest);
+	}else if(KRAM ram = cast(KRAM)symbol){
+		result = ReadArg_RAM(ram, node, isDest);
 	}else{
 		err("Unhandled symbol as statement");
 	}

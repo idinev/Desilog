@@ -23,6 +23,12 @@ int len(Range)(Range r)
 	return cast(int)r.length;
 }
 
+int logNextPow2(int value){
+	int log = 0;
+	while((1 << log) < value) log++;
+	return log;
+}
+
 string GetFilePaddedString(string fileName)
 {
 	char[] rawTxt = (cast(char[])std.file.read(fileName));

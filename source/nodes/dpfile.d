@@ -1,7 +1,7 @@
 module nodes.dpfile;
 import std.array;
 import common;
-import nodes.kintf;
+import nodes.kunit;
 import std.algorithm;
 
 
