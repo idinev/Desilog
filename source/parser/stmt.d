@@ -3,14 +3,18 @@ import common;
 
 class KStmt{ // line-statement
 	KArg  dst;
-
-	KExpr src;
 };
 
 class KStmtSet : KStmt{
-
+	KExpr src;
 };
+
+class KStmtObjMethod : KStmt{
+
+}
+
 class KStmtPick : KStmt{
+	KExpr src;
 	KExpr pass;
 	KExpr fail;
 };
@@ -107,6 +111,11 @@ KStmt ParseStatementMux(KNode node, KArg dst){
 	return s;
 }
 
+KStmt ParseStatementObjMethod(KNode node, KArg dst){
+	KStmtObjMethod s = new KStmtObjMethod();
+	return s;
+}
+
 KStmt ParseStatementSet(KNode node, KArg dst){
 	if(peek("mux")){
 		return ParseStatementMux(node, dst);
@@ -173,8 +182,8 @@ KStmt[] ReadStatementList(KNode node){
 			if(!symbol)err("Unknown symbol");
 			dst = ReadArg(symbol, node, true);
 
-			if(cast(KArgCall)dst){
-
+			if(cast(KArgObjMethod)dst){
+				s = ParseStatementObjMethod(node, dst);
 			}else{
 				if(peek('=')){
 					s = ParseStatementSet(node, dst);

@@ -36,7 +36,7 @@ private{
 		TokTyp ityp = TokTyp.num;
 		char c = str[i];
 		
-		int tlen = str.len;
+		int tlen = str.ilen;
 		if(c=='\''){
 			i++;
 			while(str[i]=='0' || str[i]=='1')i++;

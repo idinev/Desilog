@@ -33,14 +33,15 @@ void ProcessKW_Interface(DPFile file){
 
 class KRAM : KHandle{
 	KTyp typ;
+	KTyp addrTyp;
 	int size;
 	bool dual;
-	KClock clk, clk2;
-	KScope writer, writer2;
+	KClock[2] clk;
+	KScope[2] writer;
 
 	void populateProps(){
 		int logSize = logNextPow2(size);
-		KTyp addrTyp = getCustomSizedVec(logSize);
+		addrTyp = getCustomSizedVec(logSize);
 		KTyp[] setAddrArgs = [addrTyp];
 		KTyp[] writeArgs = [typ];
 		if(dual){
@@ -64,10 +65,10 @@ void ProcKW_RAM(KUnit unit){
 	if(peek("dual")){
 		ram.dual = true;
 	}
-	req('<'); ram.clk = reqNode!KClock(unit);
+	req('<'); ram.clk[0] = reqNode!KClock(unit);
 	if(ram.dual){
 		req(',');
-		ram.clk2 = reqNode!KClock(unit); 
+		ram.clk[1] = reqNode!KClock(unit); 
 	}
 	req('>');
 	
@@ -141,6 +142,9 @@ class KScope : KNode{
 
 class KProcess : KScope{
 	KClock clk;
+}
+class KTBForcer : KScope{
+
 }
 
 void ProcKW_OnClock(KUnit unit){

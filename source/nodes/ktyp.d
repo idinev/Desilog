@@ -79,6 +79,7 @@ class KHandle : KNode{
 	}
 	final void addMethod(string name, KTyp[] args, KTyp res){
 		KMethod m = new KMethod;
+		m.name = name;
 		m.argTyps = args;
 		m.retTyp = res;
 		kids ~= m;

@@ -47,6 +47,16 @@ private{
 
 
 private{
+	// print src, normalized towards a dstTyp.
+	//     int -> X"00"
+	void PrintMatchedSrc(KTyp dstTyp, KExpr src){
+		if(auto num = cast(KExprNum)src){
+			WriteSizedVectorNum(dstTyp.size, num.val);
+		}else{
+			src.printVHDL();
+		}
+	}
+
 	string VhdlPackFromURI(string uri){
 		return uri.replace(".","_");
 	}
@@ -152,15 +162,6 @@ private{
 		}
 	}
 
-	// print src, normalized towards a dstTyp.
-	//     int -> X"00"
-	void PrintSetStatementSrc(KTyp dstTyp, KExpr src){
-		if(auto num = cast(KExprNum)src){
-			WriteSizedVectorNum(dstTyp.size, num.val);
-		}else{
-			src.printVHDL();
-		}
-	}
 
 	void PrintConditionalExpr(KExpr cond){
 		xput("(");
@@ -244,7 +245,7 @@ private{
 			if(latch.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
 					xput("when %s_reset_n='1' else ", proc.clk.name);
-					PrintSetStatementSrc(latch.typ, latch.resetExpr);
+					PrintMatchedSrc(latch.typ, latch.resetExpr);
 				}else{
 					err("Latch %s should be written in a clocked process, to have an initial value", latch.name);
 				}
@@ -262,13 +263,29 @@ private{
 			if(wire.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
 					xput("when %s_reset_n='1' else ", proc.clk.name);
-					PrintSetStatementSrc(wire.typ, wire.resetExpr);
+					PrintMatchedSrc(wire.typ, wire.resetExpr);
 				}else{
 					err("Wire %s should be written in a clocked process, to have an initial value", wire.name);
 				}
 			}
 
 			xput("; -- wire pre-zero-init ");
+		}
+	}
+
+	void PreloadRAMs(KProcess proc){
+		KUnit unit = cast(KUnit)proc.parent;
+		foreach(KRAM ram; unit){
+			for(int idx=0; idx<2; idx++){
+				if(ram.writer[idx] != proc)continue;
+				string postfix = "";
+				if(ram.dual) postfix = idx ? "1" : "0";
+				xline("%s_write%s <= '0';",ram.name, postfix);
+				xline("%s_addr%s_wire <= (others => '0');",ram.name, postfix);
+				xline("%s_wdata%s <= ",ram.name, postfix);
+				PrintTypeZeroInitter(ram.typ);
+				xput(";");
+			}
 		}
 	}
 
@@ -318,7 +335,7 @@ private{
 			if(reg.resetExpr){
 				string prefixSrc = GetSpecialVarPrefix(reg, false);
 				xline("	%s%s <= ", prefixSrc, reg.name);
-				PrintSetStatementSrc(reg.typ, reg.resetExpr);
+				PrintMatchedSrc(reg.typ, reg.resetExpr);
 				xput(";");
 			}
 		}
@@ -350,7 +367,7 @@ private{
 		}
 
 		xonceClear();
-		foreach(KHandle h; unit){
+		foreach(KSubUnit h; unit){
 			if(h.isInPort) continue;
 			xoncePut("\n\t----- unit signals -------------");
 
@@ -370,6 +387,29 @@ private{
 						xput("%s;", typName(m.typ));
 					}
 				}
+			}
+		}
+
+		foreach(KRAM h; unit){
+			xline("---- internal signals for RAM %s -------------", h.name);
+			int actualSize = (1 << (logNextPow2(h.size)));
+			xline("type %s_arrtype is array (0 to %d) of %s;", h.name, actualSize - 1, typName(h.typ));
+			xline("signal %s : %s_arrtype := (others => (others => '1'));", h.name, h.name);
+
+
+			void WriteRAMSignals(KRAM h, string prefix){
+				xline("signal %s_addr_wire%s: %s;", h.name, prefix, typName(h.addrTyp));
+				xline("signal %s_addr_reg%s : %s;", h.name, prefix, typName(h.addrTyp));
+				xline("signal %s_data%s: %s;", h.name, prefix, typName(h.typ));
+				xline("signal %s_wdata%s: %s;", h.name, prefix, typName(h.typ));
+				xline("signal %s_write%s: std_logic;", h.name, prefix);
+			}
+
+			if(h.dual){
+				WriteRAMSignals(h, "0");
+				WriteRAMSignals(h, "1");
+			}else{
+				WriteRAMSignals(h, "");
 			}
 		}
 
@@ -416,6 +456,24 @@ private{
 			printUnitSignalClockPump(clk, unit);
 		}
 
+		foreach(KRAM h; unit){
+			for(int idx=0; idx < 2; idx++){
+				string postfix="";
+				if(h.dual) postfix = idx ? "1" : "0";
+				else if(idx)break;
+
+				xline("--- clock pump for RAM %s port %d", h.name, idx);
+
+				xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[idx].name, h.clk[idx].name);
+				xline("\tif %s_write%s='1' then", h.name, postfix);
+				xline("\t\t%s(conv_integer(%s_addr%s_wire)) <= %s_wdata%s;", h.name, h.name, postfix, h.name, postfix);
+				xline("\tend if;");
+				xline("\t%s_addr%s_reg <= %s_addr%s_wire;", h.name, postfix, h.name, postfix);
+				xline("end if; end process;");
+				xline("%s_data%s <= %s(conv_integer(%s_addr%s_reg));", h.name, postfix, h.name, h.name, postfix);
+			}
+		}
+
 		xline("------[ output registers] --------------");
 		foreach(KVar oreg; unit){ // find regs with init
 			if(oreg.storage != KVar.EStor.kreg) continue;
@@ -442,6 +500,8 @@ private{
 		xput("\n	begin");
 		PrintPreloadLatchesAndWires(proc, proc);
 
+		PreloadRAMs(proc);
+
 		foreach(s; proc.code){
 			printVHDL(s);
 		}
@@ -452,7 +512,7 @@ private{
 	void printVHDL(KStmtSet a){
 		xline("");
 		a.dst.printVHDL();
-		PrintSetStatementSrc(a.dst.finalTyp, a.src);
+		PrintMatchedSrc(a.dst.finalTyp, a.src);
 		xput(";");
 	}
 	void printVHDL(KStmtMux a){
@@ -479,13 +539,36 @@ private{
 		}
 	}
 
+
+	void printVHDL(KStmtObjMethod s){
+		if(auto a = cast(KArgRAMMeth)s.dst){
+			switch(a.method.name){
+				case "setAddr":
+				case "setAddr0":
+				case "setAddr1":
+					xline("%s_addr_wire <= ", a.ram.name);
+					PrintMatchedSrc(a.ram.addrTyp, a.methodArgs[0]);
+					xput(";");
+					break;
+				case "write":
+				case "write0":
+				case "write1":
+					xline("%s_write <= '1';", a.ram.name);
+					xline("%s_wdata <= ", a.ram.name);
+					PrintMatchedSrc(a.ram.typ, a.methodArgs[0]);
+					xput(";");
+					break;
+				default: errInternal;
+			}
+		}else errInternal;
+	}
+
 	void printVHDL(KStmt s){
-			  if(auto a = cast(KStmtSet)s){		printVHDL(a);
-		}else if(auto a = cast(KStmtMux)s){		printVHDL(a);
-		}else if(auto a = cast(KStmtIfElse)s){	printVHDL(a);
-		}else{
-			errInternal;
-		}
+			  if(auto a = cast(KStmtSet)s)		printVHDL(a);
+		else if(auto a = cast(KStmtMux)s)		printVHDL(a);
+		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a);
+		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
+		else errInternal;
 	}
 
 	void printVHDL(KExprNum k) {
@@ -653,25 +736,24 @@ private{
 		}
 		xline(");");
 
-		/* FIXME restore
-		if(verifEntries.num){
+		if(tb.vfy.entries.length){
 			xline("process begin");
 			xline("	wait until rising_edge(clk);\n");
 			mIndent++;
-			int clockOffs = verifyOffs + 10;
+			int clockOffs = tb.vfy.offset + 10;
 			
-			if(verifIn.num){
+			if(tb.vfy.argIns.length){
 				int cidx = clockOffs;
 				xline("case counter is -- write values");
 				mIndent++;
-				foreach(e; tb.verifEntries){
-					assert(e.ins.num == verifIn.num);
+				foreach(e; tb.vfy.entries){
+					assert(e.ins.length == tb.vfy.argIns.length);
 					xline("when %d => ", cidx);
 					int iidx = 0;
-					foreach_pvec(set, verifIn){
+					foreach(set; tb.vfy.argIns){
 						xline("	");
-						set.printVHDL(true);
-						PrintSetStatementSrc(verifIn.items[iidx].finalTyp, e.ins.items[iidx]);
+						set.printVHDL();
+						PrintMatchedSrc(tb.vfy.argIns[iidx].finalTyp, e.ins[iidx]);
 						xput(";");
 						iidx++;
 					}
@@ -682,19 +764,19 @@ private{
 				xline("end case;\n");
 			}
 			
-			if(verifOut.num){
-				int cidx = clockOffs + verifyLatency;
+			if(tb.vfy.argOuts.length){
+				int cidx = clockOffs + tb.vfy.latency;
 				xline("case counter is -- read+verify values");
 				mIndent++;
-				foreach_pvec(e, verifEntries){
-					assert(e.ins.num == verifOut.num);
+				foreach(e; tb.vfy.entries){
+					assert(e.ins.length == tb.vfy.argOuts.length);
 					xline("when %d => ", cidx);
 					int oidx = 0;
-					foreach_pvec(set, verifOut){
+					foreach(set; tb.vfy.argOuts){
 						xline("	if ");
-						set.printVHDL(false);
+						set.printVHDL();
 						xput(" /= ");
-						PrintSetStatementSrc(verifOut.items[oidx].finalTyp, e.outs.items[oidx]);
+						PrintMatchedSrc(tb.vfy.argOuts[oidx].finalTyp, e.outs[oidx]);
 						xput(" then");
 						xline("		error <= '1';");
 						xline("	end if;");
@@ -702,7 +784,7 @@ private{
 					}
 					cidx++;
 				}
-				xline("when %d =>  done <= '1'; ", cidx+verifyOffs);
+				xline("when %d =>  done <= '1'; ", cidx+tb.vfy.offset);
 				xline("	if error='0' then");
 				xline("	report \"---------[ TESTBENCH SUCCESS ]---------------\";");
 				xline("	else");
@@ -716,12 +798,11 @@ private{
 			mIndent--;
 			xline("end process;");
 		}
-		*/
+
 		
 		mIndent--;
 		xline("end architecture;");
 	}
-
 
 
 
@@ -750,6 +831,14 @@ private{
 
 	void GenUnitFile(DPFile funit){
 		CreateFile(funit.name);
+
+		foreach(KIntf intf; funit){
+			PrintVHDLUseHeader(funit);
+			printVHDL(intf);
+			xnewline();
+			xnewline();
+		}
+
 		foreach(KUnit unit; funit){
 			PrintVHDLUseHeader(funit);
 			printVHDL(unit);
@@ -779,6 +868,9 @@ package desilog is
 subtype  u8 is std_logic_vector( 7 downto 0);
 subtype u16 is std_logic_vector(15 downto 0);
 subtype u32 is std_logic_vector(31 downto 0);
+subtype u64 is std_logic_vector(63 downto 0);
+subtype  u2 is std_logic_vector( 1 downto 0);
+subtype  u4 is std_logic_vector( 3 downto 0);
 
 type string_ptr is access string;
 --function str(a : std_logic_vector) return string;

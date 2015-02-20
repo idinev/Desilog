@@ -43,10 +43,15 @@ void ProcKW_Import(KNode parent, DProj proj){
 
 // ===============================================================
 
+class TBVEntry{
+	KExpr[] ins;
+	KExpr[] outs;
+};
+
 class KTestBench : KNode{
 	KIntf intf;
 
-	IdxTok force;
+	IdxTok[] idxForcers;
 	Verify vfy;
 
 	struct Verify{
@@ -55,6 +60,11 @@ class KTestBench : KNode{
 		string[] ins;
 		string[] outs;
 		IdxTok table;
+
+		KArg[] argIns;
+		KArg[] argOuts;
+
+		TBVEntry[] entries;
 	}
 }
 
@@ -68,7 +78,7 @@ void ProcKW_Testbench(DPFile file){
 		switch(reqAmong(["}", "force", "verify"])){
 			case "}": return;
 			case "force":
-				tb.force = reqTermCurly;
+				tb.idxForcers ~= reqTermCurly;
 				break;
 			case "verify":
 				req('(');
@@ -84,6 +94,55 @@ void ProcKW_Testbench(DPFile file){
 		}
 	}
 }
+
+
+void Elaborate_Testbench(KTestBench tb){
+	foreach(fc; tb.idxForcers){
+		curTokenizer.startFrom(fc);
+		KTBForcer forcer = new KTBForcer;
+		tb.addKid(forcer);
+		forcer.code = ReadStatementList(forcer);
+	}
+	if(tb.vfy.table.firstTok){
+		KScope dummyScope = new KScope;
+		tb.addKid(dummyScope);
+
+		req('(');
+		tb.vfy.offset = reqGetConstIntegerExpr(0, 1024);
+		req(',');
+		tb.vfy.latency = reqGetConstIntegerExpr(1, 1024);
+		req(')'); req("in"); req('(');
+		
+		tb.vfy.argIns = ReadFunctionArgs(dummyScope, true);
+		req("out"); req('(');
+		tb.vfy.argOuts = ReadFunctionArgs(dummyScope, false);
+
+		req('{');
+		for(;;){
+			if(peek('}'))break;
+
+			TBVEntry ventry = new TBVEntry;
+
+			foreach(int i, a; tb.vfy.argIns){
+				if(i)req(',');
+				ventry.ins ~= ReadExpr(dummyScope);
+			}
+
+			req(':');
+
+			foreach(int i, a; tb.vfy.argOuts){
+				if(i)req(',');
+				ventry.outs ~= ReadExpr(dummyScope);
+			}
+
+			req(';');
+			tb.vfy.entries ~= ventry;
+		}
+	}
+}
+
+
+
 
 // ===============================================================
 
@@ -163,6 +222,9 @@ void OnAddProjUnit(DProj proj, string uri){
 		}
 	}
 
+	foreach(KTestBench tb; file){
+		Elaborate_Testbench(tb);
+	}
 	 
 	/*
 	 * FIXME

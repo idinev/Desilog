@@ -71,13 +71,10 @@ class KArgRAMDat : KArgObjDat{
 	int portIdx;
 }
 class KArgRAMMeth : KArgObjMethod{
+	KRAM ram;
 	int portIdx;
 }
 
-
-class KArgCall : KArg{
-	KExpr funcArgs[];
-}
 
 private{
 
@@ -130,7 +127,7 @@ private{
 
 
 
-	KArg ReadArg_SubUnit(KSubUnit sub, KNode node, bool isDest){
+	KArg ReadArg_SubUnit(KSubUnit sub, KNode node, KScope proc, bool isDest){
 		AHanAccess acc = ReadArg_AHanAccess(sub, node, isDest);
 
 		if(acc.var){
@@ -144,7 +141,7 @@ private{
 		return null;
 	}
 
-	KArg ReadArg_RAM(KRAM ram, KNode node, bool isDest){
+	KArg ReadArg_RAM(KRAM ram, KNode node, KScope proc, bool isDest){
 		AHanAccess acc = ReadArg_AHanAccess(ram, node, isDest);
 
 		if(acc.var){
@@ -156,7 +153,15 @@ private{
 		}else if(acc.method){
 			KArgRAMMeth rmet = new KArgRAMMeth;
 			rmet.setup(acc);
+			rmet.ram = ram;
 			if(acc.method.name == "write1" || acc.method.name == "setAddr1") rmet.portIdx = 1;
+			KProcess process = cast(KProcess)proc;
+			if(!process) err("Control of RAM can happen only in clocked processes");
+			if(ram.clk[rmet.portIdx] != process.clk) err("RAM port controlled from a different clock than declared");
+			KScope prevWriter = ram.writer[rmet.portIdx];
+			if(prevWriter && prevWriter != proc)err("RAM port already controlled by another process: ", prevWriter.name);
+			ram.writer[rmet.portIdx] = proc;
+			return rmet;
 		}else{
 			errInternal;
 		}
@@ -168,20 +173,21 @@ private{
 
 KArg ReadArg(KNode symbol, KNode node, bool isDest){
 	KArg result;
+	KScope proc = reqGetRootScope(node);
 	if(KVar var = cast(KVar)symbol){
 		KArgVar arg = new KArgVar;
 		arg.var = var;
 		arg.finalTyp = var.typ;
 		result = arg;
 	}else if(KSubUnit sub = cast(KSubUnit)symbol){
-		result = ReadArg_SubUnit(sub, node, isDest);
+		result = ReadArg_SubUnit(sub, node, proc, isDest);
 	}else if(KRAM ram = cast(KRAM)symbol){
-		result = ReadArg_RAM(ram, node, isDest);
+		result = ReadArg_RAM(ram, node, proc, isDest);
 	}else{
 		err("Unhandled symbol as statement");
 	}
 
-	result.proc = reqGetRootScope(node);
+	result.proc = proc;
 	result.isDest = isDest;
 
 	if(isDest){
@@ -203,6 +209,20 @@ XOffset ReadXOffset(KNode node){
 		KExprNum en = cast(KExprNum)res.exp;
 		res.idx = en.val;
 		res.exp = null;
+	}
+	return res;
+}
+
+KArg[] ReadFunctionArgs(KNode node, bool isDest = false){
+	KArg[] res;
+	for(;;){
+		if(peek(')'))break;
+		KNode symbol = node.findNode(reqIdent());
+		if(!symbol)err("Unknown symbol");
+		KArg arg = ReadArg(symbol, node, isDest);
+		res ~= arg;
+		if(peek(')'))break;
+		req(',');
 	}
 	return res;
 }

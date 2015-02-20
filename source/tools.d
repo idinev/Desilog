@@ -18,7 +18,7 @@ struct IdxTok{
 enum MAX_VEC_SIZE = 64;
 enum MAX_ARRAY_SIZE = 1024;
 
-int len(Range)(Range r)
+int ilen(Range)(Range r)
 {
 	return cast(int)r.length;
 }
