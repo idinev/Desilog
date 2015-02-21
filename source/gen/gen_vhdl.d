@@ -579,6 +579,8 @@ private{
 			 if(auto a = cast(KExprBin)k) printVHDL(a);
 		else if(auto a = cast(KExprVar)k) printVHDL(a);
 		else if(auto a = cast(KExprNum)k) printVHDL(a);
+		else if(auto a = cast(KExprUnary)k) printVHDL(a);
+		else if(auto a = cast(KExprCmp)k) printVHDL(a);
 		else errInternal;
 	}
 
@@ -680,13 +682,58 @@ private{
 		k.arg.printVHDL();
 	}
 	void printVHDL(KExprUnary k) {
-		xput(" %c",cast(char)k.uniOp);
+		string vop;
+		switch(k.uniOp){
+			case '-':	vop = "-";  break;
+			case '!':	vop = "not"; break;
+			case '~':	vop = "not"; break;
+			default: errInternal;
+		}
+		string zero = "";
+		if(k.uniOp == '-'){
+			// VHDL doesn't directly handle unary '-'
+			// so, prepend a 0
+			zero = "0 "; 
+		}
+
+		xput(" (%s%s ", zero, vop);
+		k.x.printVHDL();
+		xput(")");
 	}
+
+
 
 	void printVHDL(KExprBin k) {
 		xput("(");
 		k.x.printVHDL();
-		xput(" %s ", k.binOp);
+		string vop;
+		switch(k.binOp){
+			case "^": vop = "xor"; break;
+			case "&": vop = "and"; break;
+			case "|": vop = "or"; break;
+			default:  vop = k.binOp;
+		}
+
+		xput(" %s ", vop);
+		k.y.printVHDL();
+		xput(")");
+	}
+
+	void printVHDL(KExprCmp k){
+		xput("(");
+		k.x.printVHDL();
+		string vop;
+		switch(k.cmpOp){
+			case "==": vop = "=";  break;
+			case "<":  vop = "<";  break;
+			case ">":  vop = ">";  break;
+			case "!=": vop = "/="; break;
+			case "<=": vop = "<="; break;
+			case ">=": vop = ">="; break;
+			default: errInternal;
+		}
+		
+		xput(" %s ", vop);
 		k.y.printVHDL();
 		xput(")");
 	}

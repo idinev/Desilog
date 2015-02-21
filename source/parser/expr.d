@@ -8,31 +8,20 @@ import std.conv;
 class KExpr{
 	KTyp finalTyp;
 
-	enum ESimple{
-		kcomplex,
-		knum,
-		kvar,
-		kenum
-	};
-
-	ESimple kind = ESimple.kcomplex;
-	
-
-
 };
 
 class KExprNum : KExpr{
 	int val;
-	this(){ kind = ESimple.knum;}
+	int minBits;
 };
 
 class KExprVar : KExpr{
 	KArg arg;
-	this(){ kind = ESimple.kvar;}
 };
 
 class KExprUnary : KExpr{
 	int uniOp;
+	KExpr x;
 };
 
 class KExprBin : KExpr{
@@ -40,6 +29,12 @@ class KExprBin : KExpr{
 	KExpr x;
 	KExpr y;
 };
+
+class KExprCmp : KExpr{
+	string cmpOp;
+	KExpr x;
+	KExpr y;
+}
 
 
 
@@ -80,14 +75,19 @@ private{
 			{
 				KExprNum n = new KExprNum();
 				n.val = to!int(cc.str);
+				n.minBits = minBitsNecessary(n.val);
 				gtok;
 				return n;
 			}
 			case '-':
+			case '!':
+			case '~':
 			{
 				KExprUnary u = new KExprUnary();
 				u.uniOp = cc.typ;
 				gtok;
+				u.x = ReadExpr(node);
+				u.finalTyp = u.x.finalTyp;
 				return u;
 			}
 			case '(':
@@ -111,47 +111,122 @@ private{
 			case "-": return a-b;
 			case "+": return a+b;
 			case "*": return a*b;
-			default:
-				notImplemented;
+			case "/":	if(b==0)err("Division by zero"); return a/b;
+			case "&": return a & b;
+			case "^": return a ^ b;
+			case "|": return a | b;
+
+			case "==":	return a == b;
+			case "!=":	return a != b;
+			case "<":	return a <  b;
+			case ">":	return a >  b;
+			case "<=":	return a <= b;
+			case ">=":	return a >= b;
+			default: errInternal;
 		}
 		return 0;
 	}
 
+	KExprNum ReduceConstExprToKExpr(string op, int a, int b){
+		KExprNum n = new KExprNum;
+		n.val = ReduceConstExpr(op, a, b);
+		n.minBits = minBitsNecessary(n.val);
+		return n;
+	}
 
-	void HandleOp(KNode node, string op, ref KExpr dst, ref KExpr v1, ref KExpr v2) {
-		int fv1, fv2;
-		bool c1 = (v1.kind == KExpr.ESimple.knum);
-		bool c2 = (v2.kind == KExpr.ESimple.knum);
-		if(c1) fv1 = (cast(KExprNum)v1).val;
-		if(c2) fv2 = (cast(KExprNum)v2).val;
-		
+	bool IsVectorTyp(KExpr e){
+		if(cast(KExprNum)e) return true;
+		if(!e.finalTyp) return false;
+		return e.finalTyp.kind == KTyp.EKind.kvec;
+	}
+
+	void ReqIsVectorTyp(KExpr e){
+		if(IsVectorTyp(e)) return;
+		err("Vector or number required");
+	}
+	bool IsSameVecSize(KExpr a, KExpr b){
+		KExprNum c1 = cast(KExprNum)a;
+		KExprNum c2 = cast(KExprNum)b;
+		if(c1 && c2) return true;
+		if(!c1 && !c2){
+			return a.finalTyp.size == b.finalTyp.size;
+		}
+		if(c1 && !c2){
+			return c1.minBits <= b.finalTyp.size;
+		}
+		return c2.minBits <= a.finalTyp.size;
+	}
+	void ReqIsSameVecSize(KExpr a, KExpr b){
+		ReqIsVectorTyp(a);
+		ReqIsVectorTyp(b);
+		if(IsSameVecSize(a, b)) return;
+		err("Vector sizes don't match");
+	}
+
+
+	KExpr HandleOp(KNode node, string op, KExpr v1, KExpr v2) {
+		KExprNum c1 = cast(KExprNum)v1;
+		KExprNum c2 = cast(KExprNum)v2;
+
 		switch(op){
 			case "-":
 			case "+":
-			case "*":
+			case "&":
+			case "^":
+			case "|":
 			{
+				ReqIsSameVecSize(v1,v2);
 				if(c1 && c2){
-					KExprNum n = new KExprNum;
-					n.val = ReduceConstExpr(op, fv1,fv2);
-					dst = n;
-					return;
+					return ReduceConstExprToKExpr(op, c1.val,c2.val);
 				}
+
 				KExprBin b = new KExprBin;
 				b.binOp = op;
 				b.x = v1;
 				b.y = v2;
-				dst = b;
-				return;
+				if(v1.finalTyp) b.finalTyp = v1.finalTyp;
+				if(v2.finalTyp) b.finalTyp = v2.finalTyp;
+				return b;
+			}
+			case "==":
+			case "!=":
+			case "<":
+			case ">":
+			case "<=":
+			case ">=":
+			{
+				ReqIsSameVecSize(v1,v2);
+
+				if(c1 && c2){
+					return ReduceConstExprToKExpr(op, c1.val,c2.val);
+				}
+				KExprCmp cm = new KExprCmp;
+				cm.cmpOp = op;
+				cm.x = v1;
+				cm.y = v2;
+				cm.finalTyp = getCustomSizedVec(1);
+				return cm;
+			}
+			case "*":
+			case "/":
+			{
+				ReqIsVectorTyp(v1);
+				ReqIsVectorTyp(v2);
+				if(c1 && c2){
+					return ReduceConstExprToKExpr(op, c1.val,c2.val);
+				}
+
+				notImplemented;
+				return null;
 			}
 			default:
 				err("Unknown operator");
 		}
+		return null;
 	}
 
 	int GetPrec(string op){
 		switch(op){
-			case "&&": return 8;
-			case "||": return 8;
 			case "/":  return 7;
 			case "*":  return 7;
 			case "%":  return 7;
@@ -176,13 +251,12 @@ private{
 KExpr ReadExpr(KNode node) {
 	int	sp = 0;
 	string[9] ops;
-	KExpr v;
 	KExpr[10] vals;
 	
 	vals[0] = GetSingleExpr(node);
 	while (GetPrec(cc.str) >= 0) {
 		while (sp > 0 && GetPrec(cc.str) <= GetPrec(ops[sp-1])) {
-			HandleOp(node, ops[sp-1], v, vals[sp-1], vals[sp]);
+			KExpr v = HandleOp(node, ops[sp-1], vals[sp-1], vals[sp]);
 			vals[--sp] = v;
 		}
 		ops[sp++] = cc.str;
@@ -190,8 +264,7 @@ KExpr ReadExpr(KNode node) {
 		vals[sp] = GetSingleExpr(node);
 	}
 	while (sp > 0) {
-		KExpr v2;
-		HandleOp(node, ops[sp-1], v2, vals[sp-1], vals[sp]);
+		KExpr v2 = HandleOp(node, ops[sp-1], vals[sp-1], vals[sp]);
 		vals[--sp] = v2;
 	}
 	return vals[0];

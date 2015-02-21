@@ -14,13 +14,15 @@ unit MyRAMUser{
 	RAM <clk> u8 pamet[16];
 	
 	on_clock main<clk>{
+		counter = (- counter) + 3;
 		result = pamet.data;
 		
 		
 		pamet.setAddr(counter[0,4]);
 		pamet.write(counter);
 		
-		counter = counter - 1;
+		counter = counter - 2;
+		
 	}
 	
 }

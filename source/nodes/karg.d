@@ -205,8 +205,7 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 XOffset ReadXOffset(KNode node){
 	XOffset res;
 	res.exp = ReadExpr(node);
-	if(res.exp.kind == KExpr.ESimple.knum){
-		KExprNum en = cast(KExprNum)res.exp;
+	if(KExprNum en = cast(KExprNum)res.exp){
 		res.idx = en.val;
 		res.exp = null;
 	}

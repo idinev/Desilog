@@ -12,7 +12,7 @@ immutable auto triOps = [
 immutable auto duoOps = [
 	"?=", "or"
 ];
-immutable auto singleOps = `{}()[]<>=+*-.;,":`;
+immutable auto singleOps = `{}()[]<>=+-*/^&~.;,":`;
 
 
 

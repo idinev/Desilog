@@ -29,6 +29,14 @@ int logNextPow2(int value){
 	return log;
 }
 
+int minBitsNecessary(ulong val){
+	int bits = 0;
+	for(ulong v = val; v; v >>= 1){
+		bits++;
+	}
+	return bits;
+}
+
 string GetFilePaddedString(string fileName)
 {
 	char[] rawTxt = (cast(char[])std.file.read(fileName));
