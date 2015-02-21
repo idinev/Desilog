@@ -90,6 +90,8 @@ void ProcKW_RAM(KUnit unit){
 
 class KSubUnit : KHandle{
 	KIntf intf;
+	KClock srcClk;
+	KClock dstClk;
 }
 class KLink : KNode{
 	IdxTok curlyStart;
@@ -97,6 +99,12 @@ class KLink : KNode{
 
 void ProcKW_SubUnit(KUnit unit){
 	KSubUnit sub = new KSubUnit;
+
+	if(peek('<')){
+		sub.srcClk = reqNode!KClock(unit);
+		req('>');
+	}
+
 	sub.intf = reqNode!KIntf(unit);
 	sub.readName(unit);
 	if(peek('[')){
@@ -104,6 +112,15 @@ void ProcKW_SubUnit(KUnit unit){
 		sub.arrayLen = reqGetConstIntegerExpr(1,1024);
 		req(']');
 	}
+
+	int numSubClocks = 0;
+	foreach(KClock sclk; sub.intf){
+		numSubClocks++;
+		if(!sub.dstClk)	sub.dstClk = sclk;
+	}
+
+	if(sub.srcClk && numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
+
 	req(';');
 
 	foreach(port; sub.intf.kids){
@@ -149,8 +166,8 @@ class KTBForcer : KScope{
 
 void ProcKW_OnClock(KUnit unit){
 	KProcess proc = new KProcess;
-	proc.readUniqName(unit);
 	req('<');	proc.clk = reqNode!KClock(unit);	req('>');
+	proc.readUniqName(unit);
 	proc.curlyStart = reqTermCurly();
 }
 // ==============================[ UNIT ]=========================================================

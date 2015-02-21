@@ -19,6 +19,7 @@
     <DebugLevel>0</DebugLevel>
     <ConsolePause>false</ConsolePause>
     <OutputPath>bin</OutputPath>
+    <Commandlineparameters>-top ram.ram -idir ../examples/unittests -odir ../examples/out</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>

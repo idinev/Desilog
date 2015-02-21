@@ -4,7 +4,7 @@ import example2.myPorts;
 
 
 unit MyAdder{
-	on_clock main<clk>{
+	on_clock<clk> main{
 		z = x + y;
 	}
 }
@@ -40,7 +40,7 @@ unit example2{
 	}
 	
 	
-	on_clock main<clk>{
+	on_clock<clk> main{
 		adder.x = 5;
 		adder.y = 10;
 		ccc = aaa + bbb + adder.z;

@@ -43,6 +43,7 @@ class KStmtIfElse : KStmt{
 
 KExpr ReqReadBoolExpr(KNode node){
 	KExpr e = ReadExpr(node);
+	if(!e.finalTyp) err("Required a boolean expression, not void");
 	if(e.finalTyp.kind != KTyp.EKind.kvec && e.finalTyp.size != 1){
 		err("Required a boolean expression");
 	}
@@ -148,7 +149,6 @@ KStmt ParseStatementIf(KNode node){
 		}
 		req('{');
 		cond.block.code = ReadStatementList(cond.block);
-		req('}');
 		s.conds ~= cond;
 		if(isElse)break;
 		

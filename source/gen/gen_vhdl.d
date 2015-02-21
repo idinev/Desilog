@@ -934,14 +934,11 @@ void CreateFile(string uri){
 		vhdlOut = stdout; //vhdlOut = new File(
 	}else{
 		if(vhdlOut.isOpen) vhdlOut.close();
-		vhdlOut.open("out/" ~ uri ~ ".vhd","w");
+		vhdlOut.open(uri ~ ".vhd","w");
 	}
 }
 
 void GenerateAllVHDL(DProj proj){
-
-	if(!exists("out")) mkdir("out");
-
 
 
 
