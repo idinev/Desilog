@@ -4,6 +4,7 @@ import std.file;
 import std.array;
 import std.algorithm;
 import std.string;
+import std.conv;
 
 private{
 	enum strDesilog_SrcOutReg 	= "dg_SrcOR_";
@@ -92,8 +93,14 @@ private{
 	}*/
 
 	string typName(KTyp typ){
-		if(typ.kind == KTyp.EKind.kvec && typ.size==1){
-			return "std_logic";
+		if(typ.kind == KTyp.EKind.kvec){
+			if(typ.size==1){
+				return "std_logic";
+			}else if(typ.name.canFind('[')){
+				return "std_logic_vector(" ~ to!string(typ.size-1) ~ " downto 0)";
+			}else{
+				return typ.name;
+			}
 		}else{
 			return typ.name;
 		}
@@ -509,14 +516,51 @@ private{
 		xline("end process;");
 	}
 
-	void printVHDL(KStmtSet a){
-		xline("");
-		a.dst.printVHDL();
-		PrintMatchedSrc(a.dst.finalTyp, a.src);
+	void PrintAssign(KArg dst, KExpr src){
+		dst.printVHDL();
+		PrintMatchedSrc(dst.finalTyp, src);
 		xput(";");
 	}
-	void printVHDL(KStmtMux a){
+
+	void PrintAssignLine(KArg dst, KExpr src, string lineStart=""){
+		xline(lineStart);
+		PrintAssign(dst, src);
 	}
+
+	void printVHDL(KStmtSet a){
+		PrintAssignLine(a.dst, a.src, "");
+	}
+	void printVHDL(KStmtMux a){
+		xline("case ");
+		a.mux.printVHDL();
+		xput(" is");
+		foreach(e; a.entries){
+			xline("\twhen ");
+			foreach(int idx, val; e.icases){
+				if(idx) xput(" | ");
+				WriteSizedVectorNum(a.mux.finalTyp.size, val);
+			}
+			xput(" =>\t");
+			PrintAssign(a.dst, e.value);
+		}
+		if(a.others){
+			xline("\twhen others => ");
+			PrintAssign(a.dst, a.others);
+		}
+
+		xline("end case;");
+	}
+
+	void printVHDL(KStmtPick a){
+		xline("if ");
+		PrintConditionalExpr(a.src);
+		xput(" then");
+		PrintAssignLine(a.dst, a.pass, "\t");
+		xline("else");
+		PrintAssignLine(a.dst, a.fail, "\t");
+		xline("end if;");
+	}
+
 	void printVHDL(KStmtIfElse a){
 		with(a){
 			for(size_t i=0; i < conds.length; i++){
@@ -568,8 +612,10 @@ private{
 		else if(auto a = cast(KStmtMux)s)		printVHDL(a);
 		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a);
 		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
+		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
 		else errInternal;
 	}
+
 
 	void printVHDL(KExprNum k) {
 		xput("%d",k.val);
@@ -734,7 +780,7 @@ private{
 		}
 		
 		xput(" %s ", vop);
-		k.y.printVHDL();
+		PrintMatchedSrc(k.x.finalTyp, k.y);
 		xput(")");
 	}
 

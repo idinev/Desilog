@@ -7,12 +7,12 @@ public import parser.token;
 
 
 immutable auto triOps = [
-	"xor", "and"
+	">>>"
 ];
 immutable auto duoOps = [
-	"?=", "or"
+	"?=", "==", "!=", ">=", "<="
 ];
-immutable auto singleOps = `{}()[]<>=+-*/^&~.;,":`;
+immutable auto singleOps = `{}()[]<>=+-*/^&~.;,:!?|`;
 
 
 
