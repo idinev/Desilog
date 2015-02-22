@@ -243,6 +243,16 @@ private{
 
 
 	void PrintPreloadLatchesAndWires(KNode nodeWithVars, KScope scop){
+		foreach(KVar reg; nodeWithVars){
+			if(reg.Is.readOnly)continue;
+			if(reg.storage != KVar.EStor.kreg)continue;
+			if(reg.writer != scop)continue;
+			string prefixD = GetSpecialVarPrefix(reg, true);
+			string prefixS = GetSpecialVarPrefix(reg, false);
+			xline("%s%s <= %s%s", prefixD, reg.name, prefixS, reg.name);
+			xput("; -- register preload");
+		}
+
 		foreach(KVar latch; nodeWithVars){
 			if(latch.Is.readOnly)continue;
 			if(latch.storage != KVar.EStor.klatch)continue;
@@ -505,7 +515,7 @@ private{
 			xput("\n	variable %s: %s;", v.name, typName(v.typ));
 		}
 		xput("\n	begin");
-		PrintPreloadLatchesAndWires(proc, proc);
+		PrintPreloadLatchesAndWires(proc.parent, proc);
 
 		PreloadRAMs(proc);
 
