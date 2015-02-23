@@ -19,7 +19,7 @@
     <DebugLevel>0</DebugLevel>
     <ConsolePause>false</ConsolePause>
     <OutputPath>bin</OutputPath>
-    <Commandlineparameters>-top ram.ram -idir ../examples/unittests -odir ../examples/out</Commandlineparameters>
+    <Commandlineparameters>-top dv_main -idir /home/ili/dev/_toys/dlog_video/source -odir /home/ili/dev/_toys/dlog_video/source/autogen</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>

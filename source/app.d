@@ -4,6 +4,8 @@ import std.file;
 import std.stdio;
 import common; 
 
+// Example cmdline:
+//   desilog -top ram.ram -idir ../examples/unittests -odir ../examples/out
 
 
 string cfgOutDir = "autogen";

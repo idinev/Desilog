@@ -187,6 +187,9 @@ void ProcKW_Unit(DPFile file){
 	unit.intf.unitImpl = unit; // pair-up
 	file.addKid(unit);
 
+	auto prevNodeWithDefs = g_curNodeWithDefs;
+	g_curNodeWithDefs = unit;
+
 	// copy variables/clocks/etc
 	unit.kids ~= unit.intf.kids;
 
@@ -195,11 +198,13 @@ void ProcKW_Unit(DPFile file){
 	for(;;){
 		
 		auto cases = [
-			"}", "reg", "wire", "latch", "struct", "enum", "type", "on_clock", "link",
+			"reg", "wire", "latch", "struct", "enum", "type", "define", "on_clock", "link",
 			"RAM", "sub_unit"
 		];
+
+		if(peek('}'))break;
+
 		switch(reqAmong(cases)){
-			case "}":	return;
 			case "reg":			ProcKW_Unit_Reg(unit); break;
 			case "wire":		ProcKW_Unit_WireOrLatch(unit, true); break;
 			case "latch":		ProcKW_Unit_WireOrLatch(unit, false); break;
@@ -208,9 +213,12 @@ void ProcKW_Unit(DPFile file){
 			case "struct":		ProcKW_Struct(unit); break;
 			case "enum":		ProcKW_Enum(unit); break;
 			case "type":		ProcKW_Type(unit); break;
+			case "define":		ProcKW_Define(unit); break;
 			case "RAM":			ProcKW_RAM(unit);	break;
 			case "sub_unit":	ProcKW_SubUnit(unit); break;
 			default: 	errInternal;
 		}
 	}
+
+	g_curNodeWithDefs = prevNodeWithDefs;
 }

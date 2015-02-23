@@ -13,8 +13,6 @@ class KTyp : KNode{
 		karray,
 		kstruct,
 		kenum,
-		//kenumEntry,
-		kmethod
 	}
 }
 

@@ -130,7 +130,7 @@ private{
 				xput(");\n");
 				break;
 			default:
-				notImplemented();
+				errInternal;
 		}
 	}
 
@@ -195,7 +195,7 @@ private{
 				if(var.storage == KVar.EStor.klatch){
 					return strDesilog_DstOutLatch;
 				}
-				notImplemented;
+				errInternal;
 			}
 		}else{
 			if(var.Is.isOut) return strDesilog_SrcOutReg;

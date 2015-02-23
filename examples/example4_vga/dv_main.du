@@ -1,0 +1,59 @@
+ 
+interface dv_main{
+	clock clk; // 50MHz
+	out reg<clk>{
+		bit VGA_CLK=0, VGA_HS=0, VGA_VS=0, VGA_SYNC_n=1, VGA_BLANK_n=1;
+		u8 VGA_R=0, VGA_G=0, VGA_B=100;
+	}
+}
+
+
+unit dv_main{
+	
+	reg<clk>{
+		vec[11] h_cnt = 0;
+		vec[10] v_cnt = 0;
+	}
+	
+	on_clock<clk> colorProc{
+		VGA_R = 0;
+		VGA_G = 0;
+		VGA_B = v_cnt[1,8];
+		if(v_cnt > 100 & v_cnt < 120 & h_cnt > 350 & h_cnt < 400){
+			VGA_R = 200;
+		}
+	}
+	// config for 640x480 60Hz
+	define hori_line  = 800;                           
+	define hori_back  = 144;
+	define hori_front = 16;
+	define vert_line  = 525;
+	define vert_back  = 34;
+	define vert_front = 11;
+	define H_sync_cycle = 96;
+	define V_sync_cycle = 2;
+	
+	on_clock<clk> mainProc{
+		VGA_CLK = !VGA_CLK;
+		
+		if (VGA_CLK==0){
+			h_cnt = h_cnt+1;
+			if (h_cnt==hori_line-1){
+				h_cnt = 0;
+				v_cnt = v_cnt+1;
+				if (v_cnt==vert_line-1){
+					v_cnt = 0;
+				}	
+			}
+			VGA_HS ?= (h_cnt<H_sync_cycle) ? 0 : 1;
+			VGA_VS ?= (v_cnt<V_sync_cycle) ? 0 : 1;
+		}
+		
+		VGA_BLANK_n = 0;
+		if ((h_cnt<(hori_line-hori_front) & h_cnt>=hori_back) & (v_cnt<(vert_line-vert_front) & v_cnt>=vert_back)){
+			VGA_BLANK_n = 1;
+		}
+		
+		VGA_SYNC_n = !(VGA_HS | VGA_VS);
+	}
+}

@@ -142,15 +142,44 @@ void Elaborate_Testbench(KTestBench tb){
 }
 
 
+// ===============================================================
+
+class KDefine : KNode{
+	Token[] toks;
+}
+
+
+void ProcKW_Define(KNode parent){
+	KDefine a = new KDefine;
+	a.name = reqUniqIdent(parent);
+	if(peek('(')){
+		notImplemented;
+	}
+	req('=');
+
+	for(;;){
+		if(peek(';'))break;
+		a.toks ~= cc;
+		gtok;
+	}
+	parent.addKid(a);
+}
+
 
 
 // ===============================================================
+
+KNode g_curNodeWithDefs;
+
 
 DPFile OnAddProjPack(DProj proj, string uri){
 	DPFile file = new DPFile;
 	file.name = uri;
 	proj.addKid(file);
 	file.parent = null; // on purpose
+
+	auto prevNodeWithDefs = g_curNodeWithDefs;
+	g_curNodeWithDefs = file;
 
 	Tokenizer prevTokzer = curTokenizer;
 	
@@ -159,19 +188,22 @@ DPFile OnAddProjPack(DProj proj, string uri){
 	curTokenizer = file.tokzer;
 	file.tokzer.tokenize();
 	gtok;
+
 	
 	for(;;){
 		if(cc.typ == TokTyp.end)break;
-		switch(reqAmong(["interface", "import", "struct", "enum", "type"])) {
+		switch(reqAmong(["interface", "import", "struct", "enum", "type", "define"])) {
 			case "interface":	ProcessKW_Interface(file); break;
 			case "import":		ProcKW_Import(file, proj);break;
 			case "struct":		ProcKW_Struct(file); break;
 			case "enum":		ProcKW_Enum(file); break;
 			case "type":		ProcKW_Type(file); break;
+			case "define":		ProcKW_Define(file); break;
 			default:	errInternal;
 		}
 	}
 
+	g_curNodeWithDefs = prevNodeWithDefs;
 	curTokenizer = prevTokzer;
 	curTokenizer.back();
 	gtok;
@@ -187,6 +219,7 @@ void OnAddProjUnit(DProj proj, string uri){
 	proj.addKid(file);
 	file.parent = null; // on purpose
 	file.isUnit = true;
+	g_curNodeWithDefs = file;
 
 	string fname = uri.split(".").join("/") ~ ".du";
 	file.tokzer = new Tokenizer(fname);
@@ -196,10 +229,11 @@ void OnAddProjUnit(DProj proj, string uri){
 	
 	for(;;){
 		if(cc.typ == TokTyp.end)break;
-		switch(reqAmong(["interface", "unit", "import", "testbench"])) {
+		switch(reqAmong(["interface", "unit", "import", "define", "testbench"])) {
 			case "interface":		ProcessKW_Interface(file); break;
 			case "unit":			ProcKW_Unit(file);	break;
 			case "import":			ProcKW_Import(file, proj);break;
+			case "define":			ProcKW_Define(file); break;
 			case "testbench":		ProcKW_Testbench(file); break;
 			default:	errInternal;
 		}
@@ -209,6 +243,7 @@ void OnAddProjUnit(DProj proj, string uri){
 
 
 	foreach(KUnit unit; file){
+		g_curNodeWithDefs = unit;
 		foreach(KVar var; unit){
 			if(!var.reset.firstTok)continue;
 			curTokenizer.startFrom(var.reset);
@@ -221,6 +256,8 @@ void OnAddProjUnit(DProj proj, string uri){
 			proc.code = ReadStatementList(proc);
 		}
 	}
+
+	g_curNodeWithDefs = file;
 
 	foreach(KTestBench tb; file){
 		Elaborate_Testbench(tb);

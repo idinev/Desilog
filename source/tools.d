@@ -53,7 +53,7 @@ string GetFilePaddedString(string fileName)
 	return rawTxt.idup;
 }
 
-string reqAmong(string[] toks)
+string reqAmong(in string[] toks)
 {
 	string cur = curTokenizer.tok.str;
 	if(toks.canFind(cur)){
@@ -65,11 +65,49 @@ string reqAmong(string[] toks)
 }
 
 
+
+struct DefLeaf{
+	Token[] toks;
+}
+DefLeaf[10] defLeaves;
+int numDefLeaves = 0;
+
 Token gtok(){
-	Token t = curTokenizer.get();
+	import nodes.dpfile;
+
+	Token t;
+	for(;;){
+		if(numDefLeaves){
+			DefLeaf* dl = &defLeaves[numDefLeaves - 1];
+			t = dl.toks[0];
+			if(dl.toks.length == 1){
+				numDefLeaves--;
+			}else{
+				dl.toks = dl.toks[1 .. $];
+			}
+			break;
+		}
+		
+		t = curTokenizer.get();
+
+		if(t.typ == TokTyp.ident){
+			KDefine d = g_curNodeWithDefs.findNodeOfKind!KDefine(t.str);
+			if(!d)break;
+			if(!d.toks.length) continue;
+			t = d.toks[0];
+			if(d.toks.length > 1){
+				if(numDefLeaves == defLeaves.length) err("Define nesting is too deep");
+				defLeaves[numDefLeaves].toks = d.toks[1 .. $];
+				numDefLeaves++;
+			}
+		}
+		break;
+	}
+	
 	cc = t;
 	return t;
 }
+
 
 void StartOnTokens(Token[] toks){
 	curTokenizer = toks[0].parent; // FIXME implement
@@ -241,15 +279,15 @@ void reqMatch(Token[] res, string pattern){
 
 private
 {
- 	void doThrowReqErr(string[] toks, string cur) {
+ 	void doThrowReqErr(in string[] toks, string cur) {
 		string exp = "";
 		foreach(s;toks) exp ~= "\n	" ~ s;
 		err("Syntax error. Expected values:", exp);
 	}
- 	void failedReqTok(char exp){
+ 	void failedReqTok(in char exp){
  		err("Syntax error. Expected token: ", exp);
  	}
- 	void failedReqTok(string exp){
+ 	void failedReqTok(in string exp){
  		err("Syntax error. Expected token: ", exp);
  	}
  	void failedReqIdent(){
