@@ -3,3 +3,8 @@
 /Desilog.userprefs
 /obj/
 /.directory
+/.buildpath
+/desilog
+/.dub/*
+/dub.*
+/.settings/*
