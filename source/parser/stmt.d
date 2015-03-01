@@ -163,9 +163,16 @@ KStmt ParseStatementIf(KNode node){
 	return s;
 }
 
+void ParseStatementVar(KScope node){
+	KScope root = reqGetRootScope(node);
+	KVar base = new KVar;
+	base.storage = KVar.EStor.kvar;
+	
+	ReadVarDecls(root, base);
+}
 
 
-KStmt[] ReadStatementList(KNode node){
+KStmt[] ReadStatementList(KScope node){
 	KStmt[] code;
 	for(;;){
 		if(peek('}'))break;
@@ -173,7 +180,8 @@ KStmt[] ReadStatementList(KNode node){
 		KStmt s;
 		
 		if(word == "var"){
-			notImplemented;
+			ParseStatementVar(node);
+			continue;
 		}else if(word == "if"){
 			s = ParseStatementIf(node);
 		}else{

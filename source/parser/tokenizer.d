@@ -27,58 +27,92 @@ private{
 	bool isCharHexDigit(char c){
 		return InRange(c,'0','9') || InRange(c,'a','f') || InRange(c,'A','F');
 	}
+
+	uint getBinDigitValue(char c){
+		assert(c=='0' || c=='1');
+		return c-'0';
+	}
+	uint getHexDigitValue(char c){
+		uint res;
+		res = c - '0';	if(res < 10)return res;
+		res = c - 'A';	if(res < 6)	return res+10;
+		res = c - 'a';	if(res < 6) return res+10;
+		assert(0);
+		return 0;
+	}
+	uint getDecDigitValue(char c){
+		uint res;
+		res = c - '0';	if(res < 10)return res;
+		assert(0);
+		return 0;
+	}
+
 	
-	bool IsNum(string str, ref TokTyp resTyp, ref size_t resCount){
+	NumToken IsNum(string str, Tokenizer parent){
+		char c = str[0];
+		if(c != '\'' && !isCharDigit(c))return null;
 		zint i = 0;
+
+		TokTyp ityp;
+
+		int numBits = 0;
+		ulong value = 0;
 		
-		const(char)* ptr = str.ptr; 
-	
-		TokTyp ityp = TokTyp.num;
-		char c = str[i];
-		
-		int tlen = str.ilen;
 		if(c=='\''){
 			i++;
-			while(str[i]=='0' || str[i]=='1')i++;
-			if(str[i]!='\'')return false;
+			while(str[i]=='0' || str[i]=='1'){
+				value = (value << 1) + getBinDigitValue(str[i]);
+				numBits++;
+				i++;
+			}
+			if(str[i]!='\'')return null;
 			i++;
 			ityp = TokTyp.siznum;
 		}else if(c=='0' && str[i+1]=='x' && isCharHexDigit(str[i+2])){
 			i+=2;
 			while(isCharHexDigit(str[i])){
+				value = (value << 4) + getHexDigitValue(str[i]);
+				numBits+=4;
 				i++;
 			}
 			ityp = TokTyp.siznum;
 		}else if(isCharDigit(c)){
+			ityp = TokTyp.num;
 			while(isCharDigit(str[i])){
-				i++;
-			}
-			if(str[i]=='\''){
-				if(!isCharDigit(str[i+1]))return false;
-				i++;
-				ityp = TokTyp.siznum;
-				if(str[i]=='0' && str[i+1]=='x' && isCharHexDigit(str[i+2])){
-					i+=2;
-					while(isCharHexDigit(str[i])){
-						i++;
-					}
-				}else if(isCharDigit(str[i])){
-					while(isCharDigit(str[i])){
-						i++;
-					}
-				}else{
-					return false;
-				}
-				if(str[i]!='\'')return false;
+				value = (value * 10) + getDecDigitValue(str[i]);
 				i++;
 			}
 		}else{
-			return false;
+			assert(0);
+			return null;
 		}
+
+		int minBits = minBitsNecessary(value);
+		if(ityp == TokTyp.num) numBits = minBits;
+
+
+		if(str[i]=='@'){
+			i++;
+			if(!isCharDigit(str[i]))return null;
+			int nbits = 0;
+			while(isCharDigit(str[i])){
+				nbits = (nbits * 10) + getDecDigitValue(str[i]);
+				i++;
+			}
+			if(nbits > minBits) err("Value cannot to %d bits, as is already %d bits", nbits, minBits);
+			numBits = nbits;
+		}
+
+
+		NumToken nt = new NumToken;
+		nt.str = str[0 .. i];
+		nt.parent = parent;
+		nt.typ = ityp;
+		nt.value = value;
+		nt.minBits = minBits;
+		nt.numBits = numBits;
 		
-		resTyp = ityp;
-		resCount = i;
-		return true;
+		return nt;
 	}
 }
 
@@ -170,9 +204,7 @@ class Tokenizer
 			{
 				return isAlpha(c) || c == '_' || c == '@';
 			}
-			
-			size_t lenOfNum;
-			
+
 			if(isFirstIdentChar(c))
 			{
 				t.typ = TokTyp.ident;
@@ -182,9 +214,10 @@ class Tokenizer
 					c = src[++idx];
 				}
 			} 
-			else if(IsNum(src[base..$], t.typ, lenOfNum))
+			else if(NumToken sz = IsNum(src[base..$], this))
 			{
-				idx += lenOfNum - 1;
+				t = sz; // use a different t
+				idx += sz.str.length - 1;
 			}
 			else if(c=='"')
 			{
@@ -272,5 +305,4 @@ class Tokenizer
 		return true;
 	}
 }
-
 

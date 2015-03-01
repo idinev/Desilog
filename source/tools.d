@@ -30,8 +30,8 @@ int logNextPow2(int value){
 }
 
 int minBitsNecessary(ulong val){
-	int bits = 0;
-	for(ulong v = val; v; v >>= 1){
+	int bits = 1;
+	for(ulong v = val >> 1; v; v >>= 1){
 		bits++;
 	}
 	return bits;
@@ -55,7 +55,7 @@ string GetFilePaddedString(string fileName)
 
 string reqAmong(in string[] toks)
 {
-	string cur = curTokenizer.tok.str;
+	string cur = cc.str;
 	if(toks.canFind(cur)){
 		gtok;
 		return cur;
@@ -182,13 +182,13 @@ string reqURI(){
 zint reqTermTok(char terminator, char terminator2, ref char lastChar){
 	zint i;
 	int na=0, nb=0, nc=0;
-	for(i = curTokenizer.readIdx; i < curTokenizer.allToks.length; i++){
-		char c = curTokenizer.allToks[i].typ;
+	for(;;){
+		char c = cc.typ; 
+		if(c == TokTyp.end) break; // error
+		gtok;
 		if((c == terminator || c == terminator2) && !na && !nb && !nc){
 			lastChar = c;
-			curTokenizer.readIdx = i+1;
-			gtok;
-			return i+1;
+			return curTokenizer.readIdx;
 		}
 		if(c=='{') na++;
 		if(c=='}') na--;

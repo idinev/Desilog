@@ -12,7 +12,8 @@ class KVar : KNode{
 	VarFlags Is;
 	KScope writer;
 	KExpr resetExpr;
-	
+	KHandle handle;
+
 	enum EStor{
 		kinvalid,
 		kreg,

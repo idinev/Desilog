@@ -7,10 +7,10 @@ import std.string;
 import std.conv;
 
 private{
-	enum strDesilog_SrcOutReg 	= "dg_SrcOR_";
-	enum strDesilog_DstOutWire	= "dg_DstOW_";
-	enum strDesilog_DstOutLatch	= "dg_DstOL_";
-	enum strDesilog_DstReg 		= "dg_DstR_";
+	enum strDesilog_SrcOutReg 	= "dg_o_";
+	enum strDesilog_DstOutWire	= "dg_w_";
+	enum strDesilog_DstOutLatch	= "dg_l_";
+	enum strDesilog_DstReg 		= "dg_r_";
 
 	string vhdlFilenameFromURI(string uri){
 		return "out/" ~ uri ~ ".vhd";
@@ -135,10 +135,10 @@ private{
 	}
 
 
-	void WriteSizedVectorNum(int siz, int value){
-		if(siz < 32){
+	void WriteSizedVectorNum(int siz, ulong value){
+		if(siz < 64){
 			if(siz < 1)err("Size ", siz, " is negative");
-			int mask = (1 << siz) - 1;
+			ulong mask = (1 << siz) - 1;
 			mask = ~mask;
 			if(mask & value) err("Value ", value, " cannot fit in ", siz, " bits");
 		}
@@ -220,6 +220,7 @@ private{
 				midx++;
 				PrintTypeZeroInitter(m.typ);
 			}
+			xput(")");
 		}else{
 			notImplemented;
 		}
@@ -242,51 +243,58 @@ private{
 	}
 
 
-	void PrintPreloadLatchesAndWires(KNode nodeWithVars, KScope scop){
-		foreach(KVar reg; nodeWithVars){
-			if(reg.Is.readOnly)continue;
-			if(reg.storage != KVar.EStor.kreg)continue;
-			if(reg.writer != scop)continue;
-			string prefixD = GetSpecialVarPrefix(reg, true);
-			string prefixS = GetSpecialVarPrefix(reg, false);
-			xline("%s%s <= %s%s", prefixD, reg.name, prefixS, reg.name);
-			xput("; -- register preload");
+	void PrintPreloadSignal(KVar var, KScope scop){
+		string handPrefix = "";
+		if(var.handle){
+			handPrefix = var.handle.name;
 		}
-
-		foreach(KVar latch; nodeWithVars){
-			if(latch.Is.readOnly)continue;
-			if(latch.storage != KVar.EStor.klatch)continue;
-			if(latch.writer != scop)continue;
-			string prefix = GetSpecialVarPrefix(latch, true);
-			xline("%s%s <= %s%s", prefix, latch.name, prefix, latch.name);
-			if(latch.resetExpr){
+		if(var.storage == KVar.EStor.kreg){
+			string prefixD = GetSpecialVarPrefix(var, true);
+			string prefixS = GetSpecialVarPrefix(var, false);
+			xline("%s%s%s <= %s%s%s", handPrefix, prefixD, var.name, handPrefix, prefixS, var.name);
+			xput("; -- reg preload");
+		}else if(var.storage == KVar.EStor.klatch){
+			string prefix = GetSpecialVarPrefix(var, true);
+			xline("%s%s%s <= %s%s%s", handPrefix, prefix, var.name, handPrefix, prefix, var.name);
+			if(var.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
 					xput("when %s_reset_n='1' else ", proc.clk.name);
-					PrintMatchedSrc(latch.typ, latch.resetExpr);
+					PrintMatchedSrc(var.typ, var.resetExpr);
 				}else{
-					err("Latch %s should be written in a clocked process, to have an initial value", latch.name);
+					err("Latch %s should be written in a clocked process, to have an initial value", var.name);
 				}
 			}
 			xput("; -- latch preload");
-		}
-		
-		foreach(KVar wire; nodeWithVars){
-			if(wire.Is.readOnly)continue;
-			if(wire.storage != KVar.EStor.kwire)continue;
-			if(wire.writer != scop)continue;
-			string prefix = GetSpecialVarPrefix(wire, true);
-			xline("%s%s <= ", prefix, wire.name);
-			PrintTypeZeroInitter(wire.typ);
-			if(wire.resetExpr){
+		}else if(var.storage == KVar.EStor.kwire){
+			string prefix = GetSpecialVarPrefix(var, true);
+			xline("%s%s%s <= ", handPrefix, prefix, var.name);
+			PrintTypeZeroInitter(var.typ);
+			if(var.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
 					xput("when %s_reset_n='1' else ", proc.clk.name);
-					PrintMatchedSrc(wire.typ, wire.resetExpr);
+					PrintMatchedSrc(var.typ, var.resetExpr);
 				}else{
-					err("Wire %s should be written in a clocked process, to have an initial value", wire.name);
+					err("Wire %s should be written in a clocked process, to have an initial value", var.name);
 				}
 			}
+			
+			xput("; -- wire pre-zero-init");
+		}
+	}
 
-			xput("; -- wire pre-zero-init ");
+	void PrintPreloadLatchesAndWires(KNode nodeWithVars, KScope scop){
+		foreach(KVar var; nodeWithVars){
+			if(var.Is.readOnly)continue;
+			if(var.writer != scop)continue;
+			PrintPreloadSignal(var, scop);
+		}
+
+		foreach(KHandle handl; nodeWithVars){
+			foreach(KVar var; handl){
+				if(var.Is.readOnly)continue;
+				if(var.writer != scop)continue;
+				PrintPreloadSignal(var, scop);
+			}
 		}
 	}
 
@@ -306,7 +314,7 @@ private{
 		}
 	}
 
-	void printVHDL(KIntf k){
+	void printVHDL(KEntity k){
 		xline("entity %s is port(", k.name);
 		int idx=0, num=0;
 		foreach(KVar p; k) 	 num++;
@@ -342,31 +350,35 @@ private{
 	}
 
 	void printUnitSignalClockPump(KClock clk, KUnit unit){
-		xline("---- sync clock pump for %s ------", clk.name);
+		xnewline;
+		xline("----[ sync clock pump for %s ]------", clk.name);
 		xline("process begin"); mIndent++;
 		xline("wait until rising_edge(%s_clk);", clk.name);
-		xline("if %s_reset_n = '0' then", clk.name);
-		foreach(KVar reg; unit){ // find non-input regs with init
+		bool anyReset = false;
+		foreach(KVar reg; unit){ // find non-input regs
 			if(reg.storage != KVar.EStor.kreg) continue;
 			if(reg.Is.readOnly) continue;
-			if(reg.resetExpr){
+			if(reg.resetExpr) anyReset = true;
+			if(!reg.writer)continue;
+			string prefixSrc = GetSpecialVarPrefix(reg, false);
+			string prefixDst = GetSpecialVarPrefix(reg, true);
+			assert(prefixSrc != prefixDst);
+			xline("%s%s <= %s%s;", prefixSrc, reg.name, prefixDst, reg.name);
+		}
+
+		if(anyReset){
+			xline("if %s_reset_n = '0' then", clk.name);
+			foreach(KVar reg; unit){ // find non-input regs with init
+				if(reg.storage != KVar.EStor.kreg) continue;
+				if(reg.Is.readOnly) continue;
+				if(!reg.resetExpr)continue;
 				string prefixSrc = GetSpecialVarPrefix(reg, false);
 				xline("	%s%s <= ", prefixSrc, reg.name);
 				PrintMatchedSrc(reg.typ, reg.resetExpr);
 				xput(";");
 			}
+			xline("end if;");
 		}
-		xline("else");
-		foreach(KVar reg; unit){ // find non-input regs
-			if(reg.storage != KVar.EStor.kreg) continue;
-			if(reg.Is.readOnly) continue;
-			if(!reg.writer)continue;
-			string prefixSrc = GetSpecialVarPrefix(reg, false);
-			string prefixDst = GetSpecialVarPrefix(reg, true);
-			assert(prefixSrc != prefixDst);
-			xline("	%s%s <= %s%s;", prefixSrc, reg.name, prefixDst, reg.name);
-		}
-		xline("end if;");
 		mIndent--; xline("end process;");
 	}
 
@@ -379,14 +391,14 @@ private{
 
 		xonceClear();
 		foreach(KVar v; unit){
-			xoncePut("\n	----- internal regs/wires/etc --------");
+			xoncePut("\n\n\t----- internal regs/wires/etc --------");
 			printUnitSignal(v);
 		}
 
 		xonceClear();
 		foreach(KSubUnit h; unit){
 			if(h.isInPort) continue;
-			xoncePut("\n\t----- unit signals -------------");
+			xoncePut("\n\n\t----- unit signals -------------");
 
 			if(h.isArray){
 				notImplemented;
@@ -434,8 +446,8 @@ private{
 
 	void printVHDL(KUnit unit){
 		mIndent = 0;
-		xline("--#------- %s ------------------------------------", unit.intf.name);
-		xline("architecture rtl of %s is", unit.intf.name);
+		xline("--#------- %s ------------------------------------", unit.entity.name);
+		xline("architecture rtl of %s is", unit.entity.name);
 		mIndent = 1;
 		
 		foreach(KTyp t; unit){
@@ -446,27 +458,37 @@ private{
 
 
 		xput("\nbegin");
-		
-		foreach(KProcess p; unit){
-			printVHDL(p);
+
+		foreach(KCombi p; unit){
+			printVHDLProcess(p);
 		}
 		
-		xline("-------[ sub-units ]-----------");
-		foreach(KSubUnit subu; unit){
+		foreach(KProcess p; unit){
+			printVHDLProcess(p);
+		}
+
+
+
+		xonceClear;
+		foreach(KSubUnit subu; unit){ 
+			xoncePut("\n\n\t-------[ sub-units ]-----------");
 			int num = 1;
 			if(subu.isArray){
 				num = subu.arrayLen;
 			}
 		}
 
-		/*
-		xline("-------[ links ]----------");
+
+		xonceClear;
 		foreach(KLink k; unit){
-			xline("");
-			k.dst.printVHDL(true);
-			k.src.printVHDL(false);
-			xput(";");
-		}*/
+			xoncePut("\n\n\t-------[ links ]----------");
+			foreach(e; k.entries){
+				xline("");
+				e.dst.printVHDL();
+				e.src.printVHDL();
+				xput(";");
+			}
+		}
 
 		
 		foreach(KClock clk; unit){
@@ -491,10 +513,11 @@ private{
 			}
 		}
 
-		xline("------[ output registers] --------------");
+		xonceClear;
 		foreach(KVar oreg; unit){ // find regs with init
 			if(oreg.storage != KVar.EStor.kreg) continue;
 			if(!oreg.Is.isOut) continue;
+			xoncePut("\n\n\t------[ output registers] --------------");
 			string prefixSrc = GetSpecialVarPrefix(oreg, false);
 			xline("%s <= %s%s;", oreg.name, prefixSrc, oreg.name);
 		}
@@ -505,19 +528,23 @@ private{
 		xnewline();
 
 	}
-	void printVHDL(KProcess proc){
-		xline("%s: process (", proc.name, proc.clk.name, proc.clk.name);
+
+	void printVHDLProcess(KScope proc){
+		xnewline;
+		xline("%s: process (", proc.name);
 		PrintSensitivityList(proc);
 		xput(")");
 		mIndent=2;
 		
 		foreach(KVar v; proc){
-			xput("\n	variable %s: %s;", v.name, typName(v.typ));
+			xput("\n\t\tvariable %s: %s;", v.name, typName(v.typ));
 		}
 		xput("\n	begin");
 		PrintPreloadLatchesAndWires(proc.parent, proc);
 
-		PreloadRAMs(proc);
+		if(KProcess clockedProc = cast(KProcess)proc){
+			PreloadRAMs(clockedProc);
+		}
 
 		foreach(s; proc.code){
 			printVHDL(s);
@@ -597,14 +624,12 @@ private{
 	void printVHDL(KStmtObjMethod s){
 		if(auto a = cast(KArgRAMMeth)s.dst){
 			switch(a.method.name){
-				case "setAddr":
 				case "setAddr0":
 				case "setAddr1":
 					xline("%s_addr_wire <= ", a.ram.name);
 					PrintMatchedSrc(a.ram.addrTyp, a.methodArgs[0]);
 					xput(";");
 					break;
-				case "write":
 				case "write0":
 				case "write1":
 					xline("%s_write <= '1';", a.ram.name);
@@ -924,7 +949,7 @@ private{
 		xnewline();
 
 
-		foreach(KIntf intf; pack){
+		foreach(KEntity intf; pack){
 			PrintVHDLUseHeader(pack);
 			printVHDL(intf);
 			xnewline();
@@ -935,7 +960,7 @@ private{
 	void GenUnitFile(DPFile funit){
 		CreateFile(funit.name);
 
-		foreach(KIntf intf; funit){
+		foreach(KEntity intf; funit){
 			PrintVHDLUseHeader(funit);
 			printVHDL(intf);
 			xnewline();

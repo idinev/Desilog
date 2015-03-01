@@ -206,7 +206,7 @@ XOffset ReadXOffset(KNode node){
 	XOffset res;
 	res.exp = ReadExpr(node);
 	if(KExprNum en = cast(KExprNum)res.exp){
-		res.idx = en.val;
+		res.idx = cast(int)en.val;
 		res.exp = null;
 	}
 	return res;
@@ -224,6 +224,17 @@ KArg[] ReadFunctionArgs(KNode node, bool isDest = false){
 		req(',');
 	}
 	return res;
+}
+
+KScope reqGetRootScope(KNode node){
+	KNode found = null;
+	for(KNode n = node; n; n = n.parent){
+		if(cast(KScope)n){
+			found = n;
+		}
+	}
+	if(!found) err("Node is not in a process/scope");
+	return cast(KScope) found;
 }
 
 private{
@@ -270,18 +281,6 @@ private{
 		}
 	}
 
-
-	
-	KScope reqGetRootScope(KNode node){
-		KNode found = null;
-		for(KNode n = node; n; n = n.parent){
-			if(cast(KScope)n){
-				found = n;
-			}
-		}
-		if(!found) err("Node is not in a process/scope");
-		return cast(KScope) found;
-	}
 	
 	void OnVarWrite(KVar var, KScope writer){
 		if(var.Is.readOnly) err("Read-only variable");

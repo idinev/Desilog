@@ -49,7 +49,7 @@ class TBVEntry{
 };
 
 class KTestBench : KNode{
-	KIntf intf;
+	KEntity intf;
 
 	IdxTok[] idxForcers;
 	Verify vfy;
@@ -72,7 +72,7 @@ class KTestBench : KNode{
 void ProcKW_Testbench(DPFile file){
 	KTestBench tb = new KTestBench;
 	tb.readName(file);
-	req('<'); tb.intf = reqNode!KIntf(file); req('>');
+	req('<'); tb.intf = reqNode!KEntity(file); req('>');
 	req('{');
 	for(;;){
 		switch(reqAmong(["}", "force", "verify"])){
@@ -192,8 +192,8 @@ DPFile OnAddProjPack(DProj proj, string uri){
 	
 	for(;;){
 		if(cc.typ == TokTyp.end)break;
-		switch(reqAmong(["interface", "import", "struct", "enum", "type", "define"])) {
-			case "interface":	ProcessKW_Interface(file); break;
+		switch(reqAmong(["entity", "import", "struct", "enum", "type", "define"])) {
+			case "entity":	ProcessKW_Entity(file); break;
 			case "import":		ProcKW_Import(file, proj);break;
 			case "struct":		ProcKW_Struct(file); break;
 			case "enum":		ProcKW_Enum(file); break;
@@ -229,8 +229,8 @@ void OnAddProjUnit(DProj proj, string uri){
 	
 	for(;;){
 		if(cc.typ == TokTyp.end)break;
-		switch(reqAmong(["interface", "unit", "import", "define", "testbench"])) {
-			case "interface":		ProcessKW_Interface(file); break;
+		switch(reqAmong(["entity", "unit", "import", "define", "testbench"])) {
+			case "entity":			ProcessKW_Entity(file); break;
 			case "unit":			ProcKW_Unit(file);	break;
 			case "import":			ProcKW_Import(file, proj);break;
 			case "define":			ProcKW_Define(file); break;
@@ -249,8 +249,8 @@ void OnAddProjUnit(DProj proj, string uri){
 			curTokenizer.startFrom(var.reset);
 			var.resetExpr = ReadExpr(unit);
 		}
-		// elaborate processes
-		foreach(KProcess proc; unit){
+		// elaborate processes/combi/functions
+		foreach(KScope proc; unit){
 			curTokenizer.startFrom(proc.curlyStart);
 
 			proc.code = ReadStatementList(proc);
@@ -280,7 +280,7 @@ void OnAddProjUnit(DProj proj, string uri){
 				continue;
 			}
 			// name declared as a local or imported single-identifier
-			if(file.hasNode!KIntf(sub.name)){
+			if(file.hasNode!KEntity(sub.name)){
 				// local unit
 				sub.URI = file.URI ~ "." ~ sub.name;
 				continue;
@@ -289,7 +289,7 @@ void OnAddProjUnit(DProj proj, string uri){
 			foreach(p; file.kids){
 				KImport imp = cast(KImport)p;
 				if(!imp)continue;
-				KIntf intf = imp.hasNode!KIntf(sub.name);
+				KEntity intf = imp.hasNode!KEntity(sub.name);
 
 			}
 		}

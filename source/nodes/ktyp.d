@@ -73,6 +73,7 @@ class KHandle : KNode{
 		p.name = name;
 		p.typ = typ;
 		p.Is.readOnly = readOnly;
+		p.storage = KVar.EStor.kwire;
 		kids ~= p;
 	}
 	final void addMethod(string name, KTyp[] args, KTyp res){
@@ -94,6 +95,7 @@ class KClock : KHandle{
 
 class KEnumEntry : KNode{
 }
+
 
 void ReadVarDecls(KNode parent, KVar base){
 	KTyp typ = reqTyp(parent);
@@ -119,9 +121,12 @@ void ReadVarDecls(KNode parent, KVar base){
 
 
 void ReadScopedVarDecls(KNode parent, KVar base){
-	req('{');
-	for(;;){
-		if(peek('}'))return;
+	if(peek('{')){
+		for(;;){
+			if(peek('}'))return;
+			ReadVarDecls(parent, base);
+		}
+	}else{
 		ReadVarDecls(parent, base);
 	}
 }
@@ -185,7 +190,7 @@ void ProcKW_Unit_WireOrLatch(KUnit parent, bool isWire){
 	ReadScopedVarDecls(parent, base);
 }
 
-void ProcKW_Intf_Clock(KIntf intf){
+void ProcKW_Intf_Clock(KEntity intf){
 	KClock clk = new KClock;
 	clk.readUniqName(intf);
 	clk.isPort = true;
@@ -194,7 +199,7 @@ void ProcKW_Intf_Clock(KIntf intf){
 }
 
 
-void ProcKW_Intf_InOut(KIntf intf, bool isIn){
+void ProcKW_Intf_InOut(KEntity intf, bool isIn){
 	KVar base = new KVar;
 	base.Is.port = true;
 	base.Is.isIn = isIn;

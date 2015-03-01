@@ -11,9 +11,12 @@ class KExpr{
 };
 
 class KExprNum : KExpr{
-	int val;
+	ulong val;
 	int minBits;
 };
+class KExprSizNum : KExprNum{
+	int numBits;
+}
 
 class KExprVar : KExpr{
 	KArg arg;
@@ -73,9 +76,20 @@ private{
 			}
 			case TokTyp.num:
 			{
+				NumToken nt = cast(NumToken)cc;
 				KExprNum n = new KExprNum();
-				n.val = to!int(cc.str);
-				n.minBits = minBitsNecessary(n.val);
+				n.val = nt.value;
+				n.minBits = nt.minBits;
+				gtok;
+				return n;
+			}
+			case TokTyp.siznum:
+			{
+				NumToken nt = cast(NumToken)cc;
+				KExprSizNum n = new KExprSizNum();
+				n.val = nt.value;
+				n.minBits = nt.minBits;
+				n.numBits = nt.numBits;
 				gtok;
 				return n;
 			}
@@ -106,7 +120,7 @@ private{
 		return null;
 	}
 
-	int ReduceConstExpr(string op, int a, int b){
+	ulong ReduceConstExpr(string op, ulong a, ulong b){
 		switch(op){
 			case "-": return a-b;
 			case "+": return a+b;
@@ -127,7 +141,7 @@ private{
 		return 0;
 	}
 
-	KExprNum ReduceConstExprToKExpr(string op, int a, int b){
+	KExprNum ReduceConstExprToKExpr(string op, ulong a, ulong b){
 		KExprNum n = new KExprNum;
 		n.val = ReduceConstExpr(op, a, b);
 		n.minBits = minBitsNecessary(n.val);

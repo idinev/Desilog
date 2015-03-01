@@ -1,17 +1,18 @@
 module nodes.kunit;
 import common;
+import std.conv;
 
 // ==============================[ Intf ]=========================================================
 
-class KIntf : KNode{
+class KEntity : KNode{
 	KUnit unitImpl;
 }
 
 
 
 
-void ProcessKW_Interface(DPFile file){
-	KIntf intf = new KIntf;
+void ProcessKW_Entity(DPFile file){
+	KEntity intf = new KEntity;
 	intf.readUniqName(file);
 	req('{');
 	
@@ -36,6 +37,7 @@ class KRAM : KHandle{
 	KTyp addrTyp;
 	int size;
 	bool dual;
+	bool regOut;
 	KClock[2] clk;
 	KScope[2] writer;
 
@@ -44,17 +46,15 @@ class KRAM : KHandle{
 		addrTyp = getCustomSizedVec(logSize);
 		KTyp[] setAddrArgs = [addrTyp];
 		KTyp[] writeArgs = [typ];
+
+		addProp("data0", typ, true);
+		addMethod("setAddr0", setAddrArgs, null);
+		addMethod("write0", writeArgs, null);
+
 		if(dual){
-			addProp("data0", typ, true);
 			addProp("data1", typ, true);
-			addMethod("setAddr0", setAddrArgs, null);
 			addMethod("setAddr1", setAddrArgs, null);
-			addMethod("write0", writeArgs, null);
 			addMethod("write1", writeArgs, null);
-		}else{
-			addProp("data", typ, true);
-			addMethod("setAddr", setAddrArgs, null);
-			addMethod("write", writeArgs, null);
 		}
 	}
 }
@@ -89,12 +89,17 @@ void ProcKW_RAM(KUnit unit){
 // ==============================[ Sub-unit instance ]=======================================================
 
 class KSubUnit : KHandle{
-	KIntf intf;
+	KEntity intf;
 	KClock srcClk;
 	KClock dstClk;
 }
 class KLink : KNode{
 	IdxTok curlyStart;
+	struct Entry{
+		KArgVar dst;
+		KArgVar src;
+	}
+	Entry[] entries; // FIXME
 }
 
 void ProcKW_SubUnit(KUnit unit){
@@ -105,7 +110,7 @@ void ProcKW_SubUnit(KUnit unit){
 		req('>');
 	}
 
-	sub.intf = reqNode!KIntf(unit);
+	sub.intf = reqNode!KEntity(unit);
 	sub.readName(unit);
 	if(peek('[')){
 		sub.isArray = true;
@@ -160,6 +165,8 @@ class KScope : KNode{
 class KProcess : KScope{
 	KClock clk;
 }
+class KCombi : KScope{
+}
 class KTBForcer : KScope{
 
 }
@@ -170,10 +177,23 @@ void ProcKW_OnClock(KUnit unit){
 	proc.readUniqName(unit);
 	proc.curlyStart = reqTermCurly();
 }
+
+void ProcKW_Combi(KUnit unit){
+	KCombi comb = new KCombi;
+
+	// compose unique name
+	int numCombi = 1;
+	foreach(KCombi c; unit) numCombi++;
+	comb.name = "dg_comb_proc" ~ to!string(numCombi);
+
+	unit.addKid(comb);
+	comb.curlyStart = reqTermCurly();
+}
+
 // ==============================[ UNIT ]=========================================================
 
 class KUnit : KNode{
-	KIntf intf;
+	KEntity entity;
 }
 
 
@@ -181,24 +201,24 @@ void ProcKW_Unit(DPFile file){
 	KUnit unit = new KUnit;
 	string intfName = reqIdent;
 
-	unit.intf = file.findNodeOfKind!KIntf(intfName);
-	if(!unit.intf)err("Cannot find interface for this unit");
-	if(unit.intf.unitImpl) err("Implementation of this interface already exists");
-	unit.intf.unitImpl = unit; // pair-up
+	unit.entity = file.findNodeOfKind!KEntity(intfName);
+	if(!unit.entity)err("Cannot find interface for this unit");
+	if(unit.entity.unitImpl) err("Implementation of this interface already exists");
+	unit.entity.unitImpl = unit; // pair-up
 	file.addKid(unit);
 
 	auto prevNodeWithDefs = g_curNodeWithDefs;
 	g_curNodeWithDefs = unit;
 
 	// copy variables/clocks/etc
-	unit.kids ~= unit.intf.kids;
+	unit.kids ~= unit.entity.kids;
 
 	req('{');
 	
 	for(;;){
 		
 		auto cases = [
-			"reg", "wire", "latch", "struct", "enum", "type", "define", "on_clock", "link",
+			"reg", "wire", "latch", "struct", "enum", "type", "define", "on_clock", "combi", "link",
 			"RAM", "sub_unit"
 		];
 
@@ -209,6 +229,7 @@ void ProcKW_Unit(DPFile file){
 			case "wire":		ProcKW_Unit_WireOrLatch(unit, true); break;
 			case "latch":		ProcKW_Unit_WireOrLatch(unit, false); break;
 			case "on_clock":	ProcKW_OnClock(unit); break;
+			case "combi":		ProcKW_Combi(unit); break;
 			case "link":		ProcKW_Link(unit); break;
 			case "struct":		ProcKW_Struct(unit); break;
 			case "enum":		ProcKW_Enum(unit); break;

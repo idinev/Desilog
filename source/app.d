@@ -10,6 +10,7 @@ import common;
 
 string cfgOutDir = "autogen";
 string cfgInDir;
+string cfgChgDir;
 string cfgTop;
 
 private{
@@ -17,11 +18,14 @@ private{
 		writeln(
 `Desilog compiler. Built on ` __DATE__`
 Usage:
-	desilog -top <unit.name> [-idir <inputDir>] -odir <outputDir> 
+	desilog -top <unit.name> [-idir <inputDir> ] [-odir <outputDir> ] [-cd <startDir> ]
 Example:
 	desilog -top example2.tb_example2 -idir examples -odir autogen
 
-		
+		-top <modname>		Specify .du file which to start compilation from. 
+		-cd	 <dirname>		Change to specified folder at beginning.
+		-idir <dirname>		Folder containing sourcecode .du and .dpack files. Default is current-folder.
+		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen"  .
 `);
 		return -1;
 	}
@@ -37,6 +41,9 @@ Example:
 					break;
 				case "-idir":
 					cfgInDir = cmdArgs[aidx++];
+					break;
+				case "-cd":
+					cfgChgDir = cmdArgs[aidx++];
 					break;
 				case "-top":
 					cfgTop = cmdArgs[aidx++];
@@ -61,14 +68,19 @@ Example:
 int main(string[] cmdArgs) {
 
 	string startDir = std.file.getcwd();
-
+	
 	if(!parseArgs(cmdArgs)) return printHelp();
-	if(!verifyArgs) return printHelp();
+	if(!verifyArgs()) return printHelp();
 
 
 	DProj proj = new DProj;
 
 	try {
+		if(cfgChgDir){
+			startDir = cfgChgDir;
+			chdir(startDir);
+		}
+
 		if(cfgInDir) chdir(cfgInDir);
 
 		OnAddProjUnit(proj, cfgTop);

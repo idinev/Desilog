@@ -18,3 +18,8 @@ public class Token{
 	Tokenizer parent;
 }
 
+class NumToken : Token{
+	int numBits;
+	int minBits;
+	ulong value;
+}
