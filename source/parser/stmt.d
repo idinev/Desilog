@@ -9,6 +9,10 @@ class KStmtSet : KStmt{
 	KExpr src;
 };
 
+class KStmtLink : KStmt{
+	KArg src;
+}
+
 class KStmtObjMethod : KStmt{
 
 }
@@ -205,6 +209,31 @@ KStmt[] ReadStatementList(KScope node){
 			req(';');
 			s.dst = dst;
 		}
+		code ~= s;
+	}
+	return code;
+}
+
+
+KStmt[] ReadLinksList(KScope node){
+	KStmt[] code;
+	for(;;){
+		if(peek('}'))break;
+		string word1 = reqIdent;
+		KNode symbol1 = node.findNode(word1);
+		if(!symbol1)err("Unknown symbol");
+
+		KStmtLink s = new KStmtLink;
+		s.dst = ReadArg(symbol1, node, true);
+		req('=');
+
+		string word2 = reqIdent;
+		KNode symbol2 = node.findNode(word2);
+		if(!symbol2)err("Unknown symbol");
+		s.src = ReadArg(symbol2, node, false);
+
+		req(';');
+
 		code ~= s;
 	}
 	return code;

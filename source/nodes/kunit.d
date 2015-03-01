@@ -93,13 +93,7 @@ class KSubUnit : KHandle{
 	KClock srcClk;
 	KClock dstClk;
 }
-class KLink : KNode{
-	IdxTok curlyStart;
-	struct Entry{
-		KArgVar dst;
-		KArgVar src;
-	}
-	Entry[] entries; // FIXME
+class KLink : KScope{
 }
 
 void ProcKW_SubUnit(KUnit unit){
@@ -132,13 +126,14 @@ void ProcKW_SubUnit(KUnit unit){
 		}
 	}
 
-	int numSubClocks = 0;
-	foreach(KClock sclk; sub){
-		numSubClocks++;
-		if(!sub.dstClk)	sub.dstClk = sclk;
+	if(sub.srcClk){
+		int numSubClocks = 0;
+		foreach(KClock sclk; sub){
+			numSubClocks++;
+			if(!sub.dstClk)	sub.dstClk = sclk;
+		}
+		if(numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
 	}
-	
-	if(sub.srcClk && numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
 	
 	req(';');
 }

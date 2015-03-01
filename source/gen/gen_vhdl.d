@@ -63,11 +63,12 @@ private{
 	}
 
 	void PrintVHDLUseHeader(KNode node){
-		xput("library ieee;\n"
-			"use ieee.std_logic_1164.all;\n"
-			"use ieee.numeric_std.all;\n"
-			"use ieee.std_logic_unsigned.all;\n"
-			"use work.desilog.all;\n"
+		xput(
+`library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.desilog.all;
+`
 			);
 		
 		// write all "use" things before this node was declared
@@ -86,7 +87,7 @@ private{
 	}
 	void printKTyp(KTyp typ){
 		if(typ.kind == KTyp.EKind.kvec && typ.size==1){
-			xput("std_logic");
+			xput("std_ulogic");
 		}else{
 			printKName(typ);
 		}
@@ -95,9 +96,9 @@ private{
 	string typName(KTyp typ){
 		if(typ.kind == KTyp.EKind.kvec){
 			if(typ.size==1){
-				return "std_logic";
+				return "std_ulogic";
 			}else if(typ.name.canFind('[')){
-				return "std_logic_vector(" ~ to!string(typ.size-1) ~ " downto 0)";
+				return "unsigned(" ~ to!string(typ.size-1) ~ " downto 0)";
 			}else{
 				return typ.name;
 			}
@@ -127,7 +128,7 @@ private{
 				xline("end record;\n");
 				break;
 			case KTyp.EKind.kvec:
-				xline("subtype %s is std_logic_vector(%d downto 0);", typ.name, typ.size - 1);
+				xline("subtype %s is unsigned(%d downto 0);", typ.name, typ.size - 1);
 				break;
 			case KTyp.EKind.karray:
 				xline("type %s is array(0 to %d) of %s;", typ.name, typ.size - 1, typName(typ.base));
@@ -319,7 +320,7 @@ private{
 		foreach(KClock p; k) num++;
 
 		foreach(KClock p; k){
-			xline("	%s_clk, %s_reset_n: in std_logic", p.name, p.name);
+			xline("	%s_clk, %s_reset_n: in std_ulogic", p.name, p.name);
 			idx++;
 			if(idx!= num)xput(";");
 		}
@@ -427,7 +428,7 @@ private{
 				xline("signal %s_addr_reg%s : %s;", h.name, prefix, typName(h.addrTyp));
 				xline("signal %s_data%s: %s;", h.name, prefix, typName(h.typ));
 				xline("signal %s_wdata%s: %s;", h.name, prefix, typName(h.typ));
-				xline("signal %s_write%s: std_logic;", h.name, prefix);
+				xline("signal %s_write%s: std_ulogic;", h.name, prefix);
 			}
 
 			if(h.dual){
@@ -501,10 +502,11 @@ private{
 		xonceClear;
 		foreach(KLink k; unit){
 			xoncePut("\n\n\t-------[ links ]----------");
-			foreach(e; k.entries){
+			foreach(e; k.code){
+				KStmtLink s = cast(KStmtLink)e;
 				xline("");
-				e.dst.printVHDL();
-				e.src.printVHDL();
+				s.dst.printVHDL();
+				s.src.printVHDL();
 				xput(";");
 			}
 		}
@@ -838,8 +840,8 @@ private{
 	void printVHDL(KTestBench tb){
 		xline("entity %s is  end entity;", tb.name);
 		xline("architecture testbench of %s is", tb.name);
-		xline("	signal done,error : std_logic := '0';");
-		xline("	signal reset_n,clk : std_logic := '0';");
+		xline("	signal done,error : std_ulogic := '0';");
+		xline("	signal reset_n,clk : std_ulogic := '0';");
 		xline("	signal counter : integer := 0;");
 		foreach(KVar v; tb.intf){
 			xline("	signal %s : %s;", v.name, typName(v.typ));
@@ -1003,28 +1005,26 @@ private{
 `library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use ieee.std_logic_unsigned.all;
-use ieee.std_logic_arith.all;
 
 
 package desilog is
-subtype  u8 is std_logic_vector( 7 downto 0);
-subtype u16 is std_logic_vector(15 downto 0);
-subtype u32 is std_logic_vector(31 downto 0);
-subtype u64 is std_logic_vector(63 downto 0);
-subtype  u2 is std_logic_vector( 1 downto 0);
-subtype  u4 is std_logic_vector( 3 downto 0);
+subtype  u8 is unsigned( 7 downto 0);
+subtype u16 is unsigned(15 downto 0);
+subtype u32 is unsigned(31 downto 0);
+subtype u64 is unsigned(63 downto 0);
+subtype  u2 is unsigned( 1 downto 0);
+subtype  u4 is unsigned( 3 downto 0);
 
 type string_ptr is access string;
---function str(a : std_logic_vector) return string;
+--function str(a : unsigned) return string;
 --function str(a : integer) return string; 
-function dg_boolToBit(bval : boolean) return std_logic;
+function dg_boolToBit(bval : boolean) return std_ulogic;
 
 end package;
 
 
 package body desilog is
-	function dg_boolToBit(bval : boolean) return std_logic is	begin
+	function dg_boolToBit(bval : boolean) return std_ulogic is	begin
 		if bval then
 			return '1';
 		else

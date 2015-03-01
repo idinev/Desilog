@@ -36,15 +36,15 @@ private{
 		uint res;
 		res = c - '0';	if(res < 10)return res;
 		res = c - 'A';	if(res < 6)	return res+10;
-		res = c - 'a';	if(res < 6) return res+10;
-		assert(0);
-		return 0;
+		res = c - 'a';	
+		assert(res < 6);
+		return res+10;
 	}
 	uint getDecDigitValue(char c){
 		uint res;
-		res = c - '0';	if(res < 10)return res;
-		assert(0);
-		return 0;
+		res = c - '0';
+		assert(res < 10);
+		return res;
 	}
 
 	
@@ -84,7 +84,6 @@ private{
 			}
 		}else{
 			assert(0);
-			return null;
 		}
 
 		int minBits = minBitsNecessary(value);

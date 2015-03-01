@@ -251,9 +251,14 @@ void OnAddProjUnit(DProj proj, string uri){
 		}
 		// elaborate processes/combi/functions
 		foreach(KScope proc; unit){
+			if(cast(KLink)proc)continue; // ignore links
 			curTokenizer.startFrom(proc.curlyStart);
 
 			proc.code = ReadStatementList(proc);
+		}
+		foreach(KLink link; unit){
+			curTokenizer.startFrom(link.curlyStart);
+			link.code = ReadLinksList(link);
 		}
 	}
 
