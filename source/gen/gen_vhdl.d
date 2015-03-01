@@ -106,6 +106,17 @@ private{
 		}
 	}
 
+	string varName(KVar var, bool isDest){
+		string handPrefix = "";
+		if(var.handle){
+			handPrefix = var.handle.name ~ "_";
+		}
+
+		string prefixD = GetSpecialVarPrefix(var, isDest);
+		string result = handPrefix ~ prefixD ~ var.name;
+		return result;
+	}
+
 	void printVHDLTypeDef(KTyp typ){
 		switch(typ.kind){
 			case KTyp.EKind.kstruct:
@@ -172,33 +183,25 @@ private{
 
 	void PrintConditionalExpr(KExpr cond){
 		xput("(");
-		if(auto a = cast(KExprVar)cond){
-			a.printVHDL();
-			xput(" = '1'");
-		}else{
-			cond.printVHDL();
-		}
+		cond.printVHDL();
+		xput(" = '1'");
 		xput(")");
 	}
 
 
 
 	string GetSpecialVarPrefix(KVar var, bool isDest){
-		if(isDest){
-			if(var.storage == KVar.EStor.kreg){
-				return strDesilog_DstReg;
+		if(var.Is.isOut){
+			switch(var.storage){
+				case KVar.EStor.kreg:	return isDest ? strDesilog_DstReg : strDesilog_SrcOutReg;
+				case KVar.EStor.kwire:	return strDesilog_DstOutWire;
+				case KVar.EStor.klatch:	return strDesilog_DstOutLatch;
+				default:	errInternal;
 			}
-			if(var.Is.isOut){
-				if(var.storage == KVar.EStor.kwire){
-					return strDesilog_DstOutWire;
-				}
-				if(var.storage == KVar.EStor.klatch){
-					return strDesilog_DstOutLatch;
-				}
-				errInternal;
-			}
-		}else{
-			if(var.Is.isOut) return strDesilog_SrcOutReg;
+		}
+
+		if(isDest &&  var.storage == KVar.EStor.kreg){
+			return strDesilog_DstReg;
 		}
 		return "";
 	}
@@ -246,16 +249,12 @@ private{
 	void PrintPreloadSignal(KVar var, KScope scop){
 		string handPrefix = "";
 		if(var.handle){
-			handPrefix = var.handle.name;
+			handPrefix = var.handle.name ~ "_";
 		}
 		if(var.storage == KVar.EStor.kreg){
-			string prefixD = GetSpecialVarPrefix(var, true);
-			string prefixS = GetSpecialVarPrefix(var, false);
-			xline("%s%s%s <= %s%s%s", handPrefix, prefixD, var.name, handPrefix, prefixS, var.name);
-			xput("; -- reg preload");
+			xline("%s <= %s; -- reg preload", varName(var,true), varName(var,false));
 		}else if(var.storage == KVar.EStor.klatch){
-			string prefix = GetSpecialVarPrefix(var, true);
-			xline("%s%s%s <= %s%s%s", handPrefix, prefix, var.name, handPrefix, prefix, var.name);
+			xline("%s <= %s", varName(var,true), varName(var,false));
 			if(var.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
 					xput("when %s_reset_n='1' else ", proc.clk.name);
@@ -266,8 +265,7 @@ private{
 			}
 			xput("; -- latch preload");
 		}else if(var.storage == KVar.EStor.kwire){
-			string prefix = GetSpecialVarPrefix(var, true);
-			xline("%s%s%s <= ", handPrefix, prefix, var.name);
+			xline("%s <= ", varName(var,true));
 			PrintTypeZeroInitter(var.typ);
 			if(var.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
@@ -342,9 +340,11 @@ private{
 	}
 
 	void printUnitSignal(KVar v){
-		for(int i=0;i<2;i++){
-			string prefix = GetSpecialVarPrefix(v, i != 0);
-			if(!prefix.length) continue;
+		string prefix = GetSpecialVarPrefix(v, true);
+		if(!prefix.length) return;
+		xput("\n	signal %s%s: %s;", prefix, v.name, typName(v.typ));
+		if(v.Is.isOut && v.storage == KVar.EStor.kreg){
+			prefix = GetSpecialVarPrefix(v, false);
 			xput("\n	signal %s%s: %s;", prefix, v.name, typName(v.typ));
 		}
 	}
@@ -360,10 +360,7 @@ private{
 			if(reg.Is.readOnly) continue;
 			if(reg.resetExpr) anyReset = true;
 			if(!reg.writer)continue;
-			string prefixSrc = GetSpecialVarPrefix(reg, false);
-			string prefixDst = GetSpecialVarPrefix(reg, true);
-			assert(prefixSrc != prefixDst);
-			xline("%s%s <= %s%s;", prefixSrc, reg.name, prefixDst, reg.name);
+			xline("%s <= %s;", varName(reg, false), varName(reg, true));
 		}
 
 		if(anyReset){
@@ -372,8 +369,7 @@ private{
 				if(reg.storage != KVar.EStor.kreg) continue;
 				if(reg.Is.readOnly) continue;
 				if(!reg.resetExpr)continue;
-				string prefixSrc = GetSpecialVarPrefix(reg, false);
-				xline("	%s%s <= ", prefixSrc, reg.name);
+				xline("	%s <= ", varName(reg, false));
 				PrintMatchedSrc(reg.typ, reg.resetExpr);
 				xput(";");
 			}
@@ -476,6 +472,29 @@ private{
 			if(subu.isArray){
 				num = subu.arrayLen;
 			}
+			xline("%s : entity work.%s port map(", subu.name, subu.intf.name);
+			mIndent++;
+
+			bool anyPrinted=false;
+			foreach(int idx, n; subu.kids){
+				if(anyPrinted)xput(",");
+				if(n == subu.dstClk){
+					xline("%s_clk => %s_clk,", n.name, subu.srcClk.name);
+					xline("%s_reset_n => %s_reset_n", n.name, subu.srcClk.name);
+				}else if(auto a = cast(KClock)n){
+					xline("%s_clk => %s_clk,", n.name, subu.name, n.name);
+					xline("%s_reset_n => %s_reset_n", n.name, subu.name, n.name);
+				}else if(auto a = cast(KHandle)n){
+					errInternal;
+				}else if(auto a = cast(KVar)n){
+					xline("%s => %s_%s", n.name, subu.name, n.name);
+				}else{
+					errInternal;
+				}
+				anyPrinted = true;
+			}
+			mIndent--;
+			xline(");");
 		}
 
 
@@ -515,11 +534,9 @@ private{
 
 		xonceClear;
 		foreach(KVar oreg; unit){ // find regs with init
-			if(oreg.storage != KVar.EStor.kreg) continue;
 			if(!oreg.Is.isOut) continue;
-			xoncePut("\n\n\t------[ output registers] --------------");
-			string prefixSrc = GetSpecialVarPrefix(oreg, false);
-			xline("%s <= %s%s;", oreg.name, prefixSrc, oreg.name);
+			xoncePut("\n\n\t------[ output registers/wires/latches ] --------------");
+			xline("%s <= %s;", oreg.name, varName(oreg, false));
 		}
 		
 		mIndent = 0;
@@ -728,14 +745,12 @@ private{
 	}
 
 	void printVHDL(KArgVar arg){
-		string prefix = GetSpecialVarPrefix(arg.var, arg.isDest);
-		xput("%s%s", prefix, arg.var.name);
+		xput("%s", varName(arg.var, arg.isDest));
 
 		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}
 	void printVHDL(KArgSubuPort arg){
-		string prefix = GetSpecialVarPrefix(arg.var, arg.isDest);
-		xput("%s%s_%s", prefix, arg.sub.name, arg.var.name);
+		xput("%s", varName(arg.var, arg.isDest));
 		if(arg.sub.isArray){
 			vhdlPrintArrayElement(arg.arrIdx.exp, arg.arrIdx.idx);
 		}
@@ -801,7 +816,7 @@ private{
 	}
 
 	void printVHDL(KExprCmp k){
-		xput("(");
+		xput("dg_boolToBit(");
 		k.x.printVHDL();
 		string vop;
 		switch(k.cmpOp){
@@ -1003,10 +1018,22 @@ subtype  u4 is std_logic_vector( 3 downto 0);
 type string_ptr is access string;
 --function str(a : std_logic_vector) return string;
 --function str(a : integer) return string; 
+function dg_boolToBit(bval : boolean) return std_logic;
 
 end package;
-`);
 
+
+package body desilog is
+	function dg_boolToBit(bval : boolean) return std_logic is	begin
+		if bval then
+			return '1';
+		else
+			return '0';
+		end if;
+	end function;
+end;
+
+`);
 	}
 }
 

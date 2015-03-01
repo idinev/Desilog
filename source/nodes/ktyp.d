@@ -70,6 +70,7 @@ class KHandle : KNode{
 	final void addProp(string name, KTyp typ, bool readOnly){
 		KVar p = new KVar;
 		p.parent = this;
+		p.handle = this;
 		p.name = name;
 		p.typ = typ;
 		p.Is.readOnly = readOnly;

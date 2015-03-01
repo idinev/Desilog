@@ -118,24 +118,29 @@ void ProcKW_SubUnit(KUnit unit){
 		req(']');
 	}
 
-	int numSubClocks = 0;
-	foreach(KClock sclk; sub.intf){
-		numSubClocks++;
-		if(!sub.dstClk)	sub.dstClk = sclk;
-	}
-
-	if(sub.srcClk && numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
-
-	req(';');
 
 	foreach(port; sub.intf.kids){
 		if(cast(KVar)port){
 			KVar v = cast(KVar)port;
 			sub.addProp(v.name, v.typ, v.Is.isOut);
 		}else if(cast(KClock)port){
-			// nothing to do? FIXME
+			KClock c = new KClock;
+			c.name = port.name;
+			sub.addKid(c);
+		}else{
+			errInternal;
 		}
 	}
+
+	int numSubClocks = 0;
+	foreach(KClock sclk; sub){
+		numSubClocks++;
+		if(!sub.dstClk)	sub.dstClk = sclk;
+	}
+	
+	if(sub.srcClk && numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
+	
+	req(';');
 }
 
 void ProcKW_Link(KUnit unit){
