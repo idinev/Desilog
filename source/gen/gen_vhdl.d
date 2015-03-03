@@ -454,6 +454,10 @@ use work.desilog.all;
 		printUnitSignalsVHDL(unit);
 
 
+		foreach(KFunc f; unit){
+			printVHDLFunction(f);
+		}
+
 		xput("\nbegin");
 
 		foreach(KCombi p; unit){
@@ -572,6 +576,27 @@ use work.desilog.all;
 		xline("end process;");
 	}
 
+	void printVHDLFunction(KFunc func){
+		xnewline;
+		xline("function %s (",func.name);
+		foreach(int idx, v; func.args){
+			if(idx)xput("; ");
+			xput("%s : %s", v.name, typName(v.typ));
+		}
+		xput(") return %s is",typName(func.typ));
+		mIndent=2;
+
+		foreach(KVar v; func){
+			if(!v.Is.funcArg) xput("\n\t\tvariable %s: %s;", v.name, typName(v.typ));
+		}
+		xput("\n	begin");
+		foreach(s; func.code){
+			printVHDL(s);
+		}
+		mIndent=1;
+		xline("end;");
+	}
+
 	void PrintAssign(KArg dst, KExpr src){
 		dst.printVHDL();
 		PrintMatchedSrc(dst.finalTyp, src);
@@ -615,6 +640,12 @@ use work.desilog.all;
 		xline("else");
 		PrintAssignLine(a.dst, a.fail, "\t");
 		xline("end if;");
+	}
+
+	void printVHDL(KStmtReturn a){
+		xline("return ");
+		PrintMatchedSrc(a.func.typ, a.src);
+		xput(";");
 	}
 
 	void printVHDL(KStmtIfElse a){
@@ -667,6 +698,7 @@ use work.desilog.all;
 		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a);
 		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
 		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
+		else if(auto a = cast(KStmtReturn)s)	printVHDL(a);
 		else errInternal;
 	}
 
@@ -768,11 +800,20 @@ use work.desilog.all;
 		}
 		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}
+	void printVHDL(KArgFuncCall call){
+		xput("%s(", call.func.name);
+		foreach(int i, a; call.func.args){
+			if(i)xput(", ");
+			PrintMatchedSrc(a.typ, call.args[i]);
+		}
+		xput(")");
+	}
 
 	void printVHDL(KArg arg) {
 			 if(auto a = cast(KArgVar)arg) 		printVHDL(a);
 		else if(auto a = cast(KArgSubuPort)arg) printVHDL(a);
 		else if(auto a = cast(KArgRAMDat)arg)	printVHDL(a);
+		else if(auto a = cast(KArgFuncCall)arg)	printVHDL(a);
 		else notImplemented;
 	}
 

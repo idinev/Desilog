@@ -41,6 +41,11 @@ class KStmtIfElse : KStmt{
 	ICond[] conds;
 };
 
+class KStmtReturn : KStmt{
+	KExpr src;
+	KFunc func;
+}
+
 
 // =================================================================================
 
@@ -175,6 +180,18 @@ void ParseStatementVar(KScope node){
 	ReadVarDecls(root, base);
 }
 
+KStmt ParseStatementReturn(KScope node){
+	KScope root = reqGetRootScope(node);
+	KFunc func = cast(KFunc)root;
+	if(!func) err("Return statement valid only in functions");
+
+	auto r = new KStmtReturn;
+	r.func = func;
+	r.src = ReadExpr(node);
+	req(';');
+	return r;
+}
+
 
 KStmt[] ReadStatementList(KScope node){
 	KStmt[] code;
@@ -188,10 +205,12 @@ KStmt[] ReadStatementList(KScope node){
 			continue;
 		}else if(word == "if"){
 			s = ParseStatementIf(node);
+		}else if(word == "return"){
+			s = ParseStatementReturn(node);
 		}else{
 			KArg dst;
 			KNode symbol = node.findNode(word);
-			if(!symbol)err("Unknown symbol");
+			if(!symbol)err("Unknown symbol:", word);
 			dst = ReadArg(symbol, node, true);
 
 			if(cast(KArgObjMethod)dst){
@@ -221,7 +240,7 @@ KStmt[] ReadLinksList(KScope node){
 		if(peek('}'))break;
 		string word1 = reqIdent;
 		KNode symbol1 = node.findNode(word1);
-		if(!symbol1)err("Unknown symbol");
+		if(!symbol1)err("Unknown symbol:", word1);
 
 		KStmtLink s = new KStmtLink;
 		s.dst = ReadArg(symbol1, node, true);
@@ -229,7 +248,7 @@ KStmt[] ReadLinksList(KScope node){
 
 		string word2 = reqIdent;
 		KNode symbol2 = node.findNode(word2);
-		if(!symbol2)err("Unknown symbol");
+		if(!symbol2)err("Unknown symbol:", word2);
 		s.src = ReadArg(symbol2, node, false);
 
 		req(';');

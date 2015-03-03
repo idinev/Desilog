@@ -192,13 +192,14 @@ DPFile OnAddProjPack(DProj proj, string uri){
 	
 	for(;;){
 		if(cc.typ == TokTyp.end)break;
-		switch(reqAmong(["entity", "import", "struct", "enum", "type", "define"])) {
+		switch(reqAmong(["entity", "import", "struct", "enum", "type", "define", "func"])) {
 			case "entity":	ProcessKW_Entity(file); break;
 			case "import":		ProcKW_Import(file, proj);break;
 			case "struct":		ProcKW_Struct(file); break;
 			case "enum":		ProcKW_Enum(file); break;
 			case "type":		ProcKW_Type(file); break;
 			case "define":		ProcKW_Define(file); break;
+			case "func":		ProcKW_Func(file); break;
 			default:	errInternal;
 		}
 	}

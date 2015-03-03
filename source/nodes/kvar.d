@@ -30,6 +30,7 @@ class KVar : KNode{
 		bool readOnly;
 		bool writeOnly;
 		bool everRead;
+		bool funcArg;
 	}
 }
 

@@ -218,7 +218,7 @@ void ProcKW_Unit(DPFile file){
 	for(;;){
 		
 		auto cases = [
-			"reg", "wire", "latch", "struct", "enum", "type", "define", "on_clock", "combi", "link",
+			"reg", "wire", "latch", "struct", "enum", "type", "define", "func", "on_clock", "combi", "link",
 			"RAM", "sub_unit"
 		];
 
@@ -235,6 +235,7 @@ void ProcKW_Unit(DPFile file){
 			case "enum":		ProcKW_Enum(unit); break;
 			case "type":		ProcKW_Type(unit); break;
 			case "define":		ProcKW_Define(unit); break;
+			case "func":		ProcKW_Func(unit); break;
 			case "RAM":			ProcKW_RAM(unit);	break;
 			case "sub_unit":	ProcKW_SubUnit(unit); break;
 			default: 	errInternal;

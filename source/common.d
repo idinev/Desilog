@@ -11,6 +11,7 @@ public import nodes.kunit;
 public import nodes.ktyp;
 public import nodes.kvar;
 public import nodes.karg;
+public import nodes.kfunc;
 
 public import gen.gen_vhdl;
 

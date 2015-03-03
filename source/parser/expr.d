@@ -67,7 +67,7 @@ private{
 			{
 				string symName = reqIdent;
 				KNode symbol = node.findNode(symName);
-				if(!symbol) err("Unknown symbol");
+				if(!symbol) err("Unknown symbol:", symName);
 
 				KExprVar v = new KExprVar();
 				v.arg = ReadArg(symbol, node, false);

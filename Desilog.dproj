@@ -59,6 +59,7 @@
     <Compile Include="source\gen\gen_vhdl.d" />
     <Compile Include="source\nodes\karg.d" />
     <Compile Include="source\nodes\kunit.d" />
+    <Compile Include="source\nodes\kfunc.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\gen\" />

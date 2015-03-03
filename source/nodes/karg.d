@@ -74,6 +74,10 @@ class KArgRAMMeth : KArgObjMethod{
 	KRAM ram;
 	int portIdx;
 }
+class KArgFuncCall : KArg{
+	KFunc func;
+	KExpr[] args;
+}
 
 
 private{
@@ -168,7 +172,23 @@ private{
 
 		return null;
 	}
+
+	KArg ReadArg_Func(KFunc func, KNode node, KScope proc, bool isDest){
+		if(isDest)err("Function results cannot be ignored");
+
+		auto res = new KArgFuncCall;
+		res.func = func;
+		res.finalTyp = func.typ;
+		req('(');
+		foreach(int i, arg; func.args){
+			if(i)req(',');
+			res.args ~= ReadExpr(node);
+		}
+		req(')');
+		return res;
+	}
 }
+
 
 
 KArg ReadArg(KNode symbol, KNode node, bool isDest){
@@ -183,6 +203,8 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 		result = ReadArg_SubUnit(sub, node, proc, isDest);
 	}else if(KRAM ram = cast(KRAM)symbol){
 		result = ReadArg_RAM(ram, node, proc, isDest);
+	}else if(KFunc func = cast(KFunc)symbol){
+		result = ReadArg_Func(func, node, proc, isDest);
 	}else{
 		err("Unhandled symbol as statement");
 	}
@@ -216,8 +238,9 @@ KArg[] ReadFunctionArgs(KNode node, bool isDest = false){
 	KArg[] res;
 	for(;;){
 		if(peek(')'))break;
-		KNode symbol = node.findNode(reqIdent());
-		if(!symbol)err("Unknown symbol");
+		string symName = reqIdent;
+		KNode symbol = node.findNode(symName);
+		if(!symbol)err("Unknown symbol:", symName);
 		KArg arg = ReadArg(symbol, node, isDest);
 		res ~= arg;
 		if(peek(')'))break;
