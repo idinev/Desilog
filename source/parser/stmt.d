@@ -9,8 +9,9 @@ class KStmtSet : KStmt{
 	KExpr src;
 };
 
+
 class KStmtLink : KStmt{
-	KArg src;
+	VEndPoint edst, esrc;
 }
 
 class KStmtObjMethod : KStmt{
@@ -238,18 +239,12 @@ KStmt[] ReadLinksList(KScope node){
 	KStmt[] code;
 	for(;;){
 		if(peek('}'))break;
-		string word1 = reqIdent;
-		KNode symbol1 = node.findNode(word1);
-		if(!symbol1)err("Unknown symbol:", word1);
 
 		KStmtLink s = new KStmtLink;
-		s.dst = ReadArg(symbol1, node, true);
+		s.edst = reqReadEndPoint(node, true);
 		req('=');
-
-		string word2 = reqIdent;
-		KNode symbol2 = node.findNode(word2);
-		if(!symbol2)err("Unknown symbol:", word2);
-		s.src = ReadArg(symbol2, node, false);
+		s.esrc = reqReadEndPoint(node, false);
+		if(s.edst.finalTyp != s.esrc.finalTyp)	err("Link endpoints are incompatible");
 
 		req(';');
 

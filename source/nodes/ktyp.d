@@ -16,6 +16,10 @@ class KTyp : KNode{
 	}
 }
 
+// global "KTyp" to be used as dummy-types of variables
+__gshared KTyp g_specTypKClock = new KTyp;
+__gshared KTyp g_specTypKRAM_1port = new KTyp;
+
 KTyp[int] allCustomSizedVecs;
 KTyp getCustomSizedVec(int siz){
 	foreach(t; baseTyps){

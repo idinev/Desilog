@@ -10,7 +10,7 @@ private{
 	enum strDesilog_SrcOutReg 	= "dg_o_";
 	enum strDesilog_DstOutWire	= "dg_w_";
 	enum strDesilog_DstOutLatch	= "dg_l_";
-	enum strDesilog_DstReg 		= "dg_r_";
+	enum strDesilog_DstReg 		= "dg_c_"; // actually a combi-out to be registered later
 
 	string vhdlFilenameFromURI(string uri){
 		return "out/" ~ uri ~ ".vhd";
@@ -383,7 +383,14 @@ use work.desilog.all;
 		foreach(KVar v; unit){
 			if(v.Is.port)continue;
 			//if(v.Is.handle) continue;
-			xput("\n	signal %s: %s;", v.name, typName(v.typ));
+			string stor;
+			switch(v.storage){
+				case KVar.EStor.kreg:	stor = "	-- reg"; break;
+				case KVar.EStor.kwire:	stor = "	-- WIRE"; break;
+				case KVar.EStor.klatch:	stor = "	-- LATCH!!!"; break;
+				default:				stor = "";
+			}
+			xput("\n	signal %s: %s;%s", v.name, typName(v.typ), stor);
 		}
 
 		xonceClear();
@@ -393,26 +400,31 @@ use work.desilog.all;
 		}
 
 		xonceClear();
-		foreach(KSubUnit h; unit){
-			if(h.isInPort) continue;
+		foreach(KSubUnit sub; unit){
+			if(sub.isInPort) continue;
 			xoncePut("\n\n\t----- unit signals -------------");
 
-			if(h.isArray){
+			if(sub.isArray){
 				notImplemented;
 			}
-			foreach(KVar m; h){
+			foreach(KVar m; sub){
 				for(int i=0;i<2;i++){
 					if(i){
 						if(m.storage != KVar.EStor.kreg)break;
 						if(m.Is.isIn)break;
 					}
-					xline("	signal %s%s_%s : ",  i ? "reg_" : "", h.name, m.name);
-					if(h.isArray){
+					xline("	signal %s%s_%s : ",  i ? "reg_" : "", sub.name, m.name);
+					if(sub.isArray){
 						//xput("typ_%s_%s;", v.name, m.name);
 					}else{
 						xput("%s;", typName(m.typ));
 					}
 				}
+			}
+			foreach(KClock subClk; sub){
+				// print local signals for the clocks of this subunit
+				if(sub.srcClk == subClk)continue;
+				xline("\tsignal %s_%s_clk, %s_%s_reset_n : std_ulogic;", sub.name, subClk.name, sub.name, subClk.name);
 			}
 		}
 
@@ -487,8 +499,8 @@ use work.desilog.all;
 					xline("%s_clk => %s_clk,", n.name, subu.srcClk.name);
 					xline("%s_reset_n => %s_reset_n", n.name, subu.srcClk.name);
 				}else if(auto a = cast(KClock)n){
-					xline("%s_clk => %s_clk,", n.name, subu.name, n.name);
-					xline("%s_reset_n => %s_reset_n", n.name, subu.name, n.name);
+					xline("%s_clk => %s_%s_clk,", n.name, subu.name, n.name);
+					xline("%s_reset_n => %s_%s_reset_n", n.name, subu.name, n.name);
 				}else if(auto a = cast(KHandle)n){
 					errInternal;
 				}else if(auto a = cast(KVar)n){
@@ -508,10 +520,7 @@ use work.desilog.all;
 			xoncePut("\n\n\t-------[ links ]----------");
 			foreach(e; k.code){
 				KStmtLink s = cast(KStmtLink)e;
-				xline("");
-				s.dst.printVHDL();
-				s.src.printVHDL();
-				xput(";");
+				s.printVHDL();
 			}
 		}
 
@@ -667,6 +676,49 @@ use work.desilog.all;
 				mIndent--;
 			}
 			xline("end if;");
+		}
+	}
+
+	void PrintEndPointAttr(VEndPoint p, string attr){
+		if(p.var){
+			xput("%s",varName(p.var, false));
+			if(p.arrSubIdx){
+				xput("(%d)", p.arrSubIdx - 1);
+			}
+			if(p.arrVarIdx){
+				xput("(%d)", p.arrVarIdx - 1);
+			}
+			xput("%s", attr);
+		}else if(p.clk){
+			if(p.sub){
+				xput("%s_", p.sub.name);
+				if(p.arrSubIdx){
+					xput("(%d).", p.arrSubIdx - 1);
+				}
+			}
+			xput("%s%s", p.clk.name, attr);
+		}else{
+			errInternal;
+		}
+
+	}
+	void PrintEndPointAssignAttr(VEndPoint dst, VEndPoint src, string attr){
+		xline("");
+		PrintEndPointAttr(dst, attr);
+		xput(" <= ");
+		PrintEndPointAttr(src, attr);
+		xput(";");
+	}
+
+	void printVHDL(KStmtLink a){
+		VEndPoint dst = a.edst;
+		VEndPoint src = a.esrc;
+
+		if(dst.clk){
+			PrintEndPointAssignAttr(dst, src, "_clk");
+			PrintEndPointAssignAttr(dst, src, "_reset_n");
+		}else{
+			PrintEndPointAssignAttr(dst, src, "");
 		}
 	}
 
