@@ -55,17 +55,16 @@ class KTestBench : KNode{
 	Verify vfy;
 
 	struct Verify{
-		bool active;
+		IdxTok idxTok;
 		int offset, latency;
-		string[] ins;
-		string[] outs;
-		IdxTok table;
+
 
 		KArg[] argIns;
 		KArg[] argOuts;
 
 		TBVEntry[] entries;
 	}
+
 }
 
 
@@ -73,6 +72,21 @@ void ProcKW_Testbench(DPFile file){
 	KTestBench tb = new KTestBench;
 	tb.readName(file);
 	req('<'); tb.intf = reqNode!KEntity(file); req('>');
+
+	// copy ports, reverse direction. Convert to "wire" for now
+	foreach(port; tb.intf.kids){
+		if(auto v = cast(KVar)port){
+			KVar p = new KVar;
+			p.name = v.name;
+			p.typ = v.typ;
+			p.Is.readOnly = v.Is.isOut;
+			//p.storage = v.storage; // FIXME
+			p.storage = KVar.EStor.kwire;
+			p.clock = v.clock;
+			tb.addKid(p);
+		}
+	}
+
 	req('{');
 	for(;;){
 		switch(reqAmong(["}", "force", "verify"])){
@@ -82,13 +96,10 @@ void ProcKW_Testbench(DPFile file){
 				break;
 			case "verify":
 				req('(');
-				tb.vfy.offset = reqGetConstIntegerExpr(0,100000);
-				req(',');
-				tb.vfy.latency = reqGetConstIntegerExpr(0,1000);
-				req(')'); 
-				req("in");  req('('); tb.vfy.ins  = reqListOfIdents(); req(')');
-				req("out"); req('('); tb.vfy.outs = reqListOfIdents(); req(')');
-				tb.vfy.table = reqTermCurly;
+				tb.vfy.idxTok = reqTermRange(')');
+				req("in"); req('('); reqTermRange(')');
+				req("out"); req('('); reqTermRange(')');
+				reqTermCurly;
 				break;
 			default: errInternal;
 		}
@@ -103,11 +114,11 @@ void Elaborate_Testbench(KTestBench tb){
 		tb.addKid(forcer);
 		forcer.code = ReadStatementList(forcer);
 	}
-	if(tb.vfy.table.firstTok){
+	if(tb.vfy.idxTok.firstTok){
+		curTokenizer.startFrom(tb.vfy.idxTok);
 		KScope dummyScope = new KScope;
 		tb.addKid(dummyScope);
 
-		req('(');
 		tb.vfy.offset = reqGetConstIntegerExpr(0, 1024);
 		req(',');
 		tb.vfy.latency = reqGetConstIntegerExpr(1, 1024);

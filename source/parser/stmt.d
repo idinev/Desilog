@@ -95,7 +95,7 @@ KStmt ParseStatementMux(KNode node, KArg dst){
 	req(')'); req('{');
 	for(;;){
 		if(peek('}'))break;
-		if(peek("else")){
+		if(peek("default")){
 			req(':');
 			s.others = ReadExpr(node);
 			req(';'); req('}');

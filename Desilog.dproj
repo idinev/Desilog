@@ -19,7 +19,7 @@
     <DebugLevel>0</DebugLevel>
     <ConsolePause>false</ConsolePause>
     <OutputPath>bin</OutputPath>
-    <Commandlineparameters>-top core3d -cd /home/ili/dev/Raster3/source</Commandlineparameters>
+    <Commandlineparameters>-top example0 -cd /home/ili/dev/Desilog/examples/example0</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>

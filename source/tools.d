@@ -218,6 +218,11 @@ IdxTok reqTermRange(char term1, char term2, ref char lastChar){
 	return res;
 }
 
+IdxTok reqTermRange(char term){
+	char dummyChar;
+	return reqTermRange(term, term, dummyChar);
+}
+
 string[] reqListOfIdents(){
 	string[] res;
 	for(;;){

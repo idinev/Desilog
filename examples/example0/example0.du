@@ -1,0 +1,71 @@
+/*
+	Example0 for Desilog
+	
+	Compile with 
+		desilog -top example0
+			or
+		desilog -top example0 -cd examples/example0
+			or
+		desilog -top example0 -idir examples/example0 -odir examples/example0/autogen
+		
+	
+	Demonstrates a hello-world clocked adder
+		(Example1 was too complex...)
+*/
+entity Example0{
+	clock clk;			// clocks are handles/structs, which contain a "clk" bit and "reset_n" synchronous bit. 
+	
+	in reg<clk>{		// when Example2's "reg" inputs are written, they're always written synchronously to the specified <clk>. 
+		bit doAdd; 		// a single bit, can be used as a boolean. Desilog doesn't have explicit booleans, any 1-bit value will do. Here we use: 0 = subtract, 1 = add
+		u8 xx, yy;		
+	}
+	
+	out reg<clk> u8 zz;	// a register, clocked and reset by "clk". No reset value provided here, so won't be reset. 
+	out reg<clk>{
+		u8 and_result_reg = 0x55; // on sync-reset, gets this value
+	}
+	out wire 	u8 xor_result_wire;
+	out latch 	u8 or_result_latch;
+}
+
+
+unit Example0{	// "architecture" of Example0
+
+	on_clock<clk> myProcess{ // on every clock
+		and_result_reg = xx & yy;
+		xor_result_wire = xx ^ yy; // notice, we can write to async signals from a clocked-process
+		
+		if doAdd{
+			zz = xx + yy;
+		}else{
+			zz = xx - yy;
+		}
+	}
+	
+	combi{ // asynchronous process
+		or_result_latch = xx | yy;
+		
+		if and_result_reg[4]{ // if bit 4 is set
+			or_result_latch = xx;
+		}
+		if(zz[0,3] == 5){ // if the lower 3 bits are '101'
+			or_result_latch = !yy; // complementary-not of 8 bits
+		}
+	}
+}
+
+
+
+testbench example0_tb<Example0>{ // drives "clk"
+	force{ // keep these inputs constant
+		doAdd = 1;
+	}
+
+	verify(3,2)  // starting from clock 3 after reset_n='1', specify input-values, and 2 clocks later verify output-values
+		in(xx,yy) 
+		out(zz, and_result_reg)
+	{
+		6, 10   	:  16, 2; // on clock 3, set xx=6, yy=10. 2 clocks later verify zz=16 and and_result_reg=2
+		0x33, 0x55	:  0x88, 0x11; // on clock 4
+	}
+}
