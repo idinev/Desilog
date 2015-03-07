@@ -467,7 +467,10 @@ use work.desilog.all;
 
 
 		foreach(KFunc f; unit){
-			printVHDLFunction(f);
+			printVHDLFunction(f, false);
+		}
+		foreach(KCasterFunc f; unit){
+			printVHDLCasterFunc(f, false);
 		}
 
 		xput("\nbegin");
@@ -585,14 +588,16 @@ use work.desilog.all;
 		xline("end process;");
 	}
 
-	void printVHDLFunction(KFunc func){
+	void printVHDLFunction(KFunc func, bool onlyDecl){
 		xnewline;
 		xline("function %s (",func.name);
 		foreach(int idx, v; func.args){
 			if(idx)xput("; ");
 			xput("%s : %s", v.name, typName(v.typ));
 		}
-		xput(") return %s is",typName(func.typ));
+		xput(") return %s%s",typName(func.typ), (onlyDecl ? ";" : " is"));
+		if(onlyDecl)return;
+
 		mIndent=2;
 
 		foreach(KVar v; func){
@@ -602,6 +607,77 @@ use work.desilog.all;
 		foreach(s; func.code){
 			printVHDL(s);
 		}
+		mIndent=1;
+		xline("end;");
+	}
+	void printVHDLCasterFunc(KCasterFunc func, bool onlyDecl){
+		xnewline;
+		xline("function %s(arg : %s) return %s%s",
+			func.name,
+			typName(func.srcTyp), typName(func.dstTyp),
+			onlyDecl ? ";" : " is");
+		mIndent=2;
+
+		int svecSiz = calcTypSizeInBits(func.srcTyp);
+		int dvecSiz = calcTypSizeInBits(func.dstTyp);
+		int mvecSiz = max(svecSiz,dvecSiz);
+
+		xput("\n\t\tvariable tmp: unsigned(%d downto 0) := (others => '0');", mvecSiz-1);
+		xput("\n\t\tvariable res: %s;", typName(func.dstTyp));
+		xput("\n	begin");
+
+
+		static void convThing(KTyp typ, bool isDest){
+			switch(typ.kind){
+				case KTyp.EKind.kvec:
+					if(isDest){
+						xline("res := tmp(%d downto 0);", typ.size - 1);
+					}else{
+						xline("tmp(%d downto 0) := arg;", typ.size - 1);
+					}
+					break;
+				case KTyp.EKind.karray:
+					if(typ.base.kind == KTyp.EKind.kvec){
+						int dbit=0;
+						int baseSiz = typ.base.size;
+						for(int i=0;i<typ.size;i++){
+							if(isDest){
+								xline("res(%d) := tmp(%d downto %d);", i, dbit+baseSiz-1, dbit);
+							}else{
+								xline("tmp(%d downto %d) := arg(%d);", dbit+baseSiz-1, dbit, i);
+							}
+							dbit += baseSiz;
+						}
+					}else{
+						notImplemented;
+					}
+					break;
+				case KTyp.EKind.kstruct:
+					int dbit=0;
+					foreach(KVar m; typ){
+						if(m.typ.kind == KTyp.EKind.kvec){
+							int baseSiz = m.typ.size;
+							if(isDest){
+								xline("res.%s := tmp(%d downto %d);", m.name, dbit+baseSiz-1, dbit);
+							}else{
+								xline("tmp(%d downto %d) := arg.%s;", dbit+baseSiz-1, dbit, m.name);
+							}
+							dbit += baseSiz;
+						}else{
+							notImplemented;
+						}
+					}
+					break;
+				default:
+					errInternal;
+			}
+		}
+
+
+		convThing(func.srcTyp, false); // convert source to unsigned into "tmp"
+		convThing(func.dstTyp, true);  // convert unsigned "tmp" to into "res"
+		xline("return res;");
+
 		mIndent=1;
 		xline("end;");
 	}
@@ -765,6 +841,7 @@ use work.desilog.all;
 		else if(auto a = cast(KExprNum)k) printVHDL(a);
 		else if(auto a = cast(KExprUnary)k) printVHDL(a);
 		else if(auto a = cast(KExprCmp)k) printVHDL(a);
+		else if(auto a = cast(KExprCast)k)printVHDL(a);
 		else errInternal;
 	}
 
@@ -928,6 +1005,11 @@ use work.desilog.all;
 		PrintMatchedSrc(k.x.finalTyp, k.y);
 		xput(")");
 	}
+	void printVHDL(KExprCast k){
+		xput("%s(", k.casterFuncName);
+		k.arg.printVHDL();
+		xput(")");
+	}
 
 
 	void printVHDL(KTestBench tb){
@@ -1054,9 +1136,32 @@ private{
 		foreach(KTyp t; pack){
 			printVHDLTypeDef(t);
 		}
+
+		bool anyFuncs = false;
+		foreach(KFunc f; pack){
+			anyFuncs = true;
+			printVHDLFunction(f, true);
+		}
+		foreach(KCasterFunc f; pack){
+			anyFuncs = true;
+			printVHDLCasterFunc(f, true);
+		}
+
 		xline("end package;");
 		xnewline();
 		xnewline();
+
+		if(anyFuncs){
+			xline("package body %s is", VhdlPackFromURI(pack.name));
+			foreach(KFunc f; pack){
+				printVHDLFunction(f, false);
+			}
+			foreach(KCasterFunc f; pack){
+				printVHDLCasterFunc(f, false);
+			}
+
+			xline("end;");
+		}
 
 
 		foreach(KEntity intf; pack){

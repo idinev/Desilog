@@ -44,3 +44,64 @@ void ProcKW_Func(KNode parent){
 
 	f.curlyStart = reqTermCurly();
 }
+
+class KCasterFunc : KNode{
+	KTyp dstTyp, srcTyp;
+}
+
+string makeCasterFuncName(KTyp dst, KTyp src){
+	string casterFuncName = "dg_cast_" ~ mangledName(dst) ~ 
+		"_from_" ~ mangledName(src);
+	return casterFuncName;
+}
+
+string makeCasterFunc(KNode node, KTyp dst, KTyp src){
+	string casterFuncName = makeCasterFuncName(dst, src);
+	
+	if(node.findNodeOfKind!KCasterFunc(casterFuncName)) return casterFuncName;
+	
+	int dsiz = calcTypSizeInBits(dst);
+	int ssiz = calcTypSizeInBits(src);
+	if(dsiz < ssiz)err("Cast destination is smaller than source");
+	
+	static void preloadSubCasters(KNode node, KTyp arg, bool isDest){
+		
+		void makeCF(KTyp base){
+			int siz = calcTypSizeInBits(base);
+			KTyp vectyp = getCustomSizedVec(siz);
+			if(isDest){
+				makeCasterFunc(node, vectyp, base);
+			}else{
+				makeCasterFunc(node, base, vectyp);
+			}
+		}
+		
+		switch(arg.kind){
+			case KTyp.EKind.karray:
+				if(arg.base.kind != KTyp.EKind.kvec){
+					makeCF(arg.base);
+				}
+				break;
+			case KTyp.EKind.kstruct:
+				foreach(KVar m; arg){
+					if(m.typ.kind != KTyp.EKind.kvec){
+						makeCF(m.typ);
+					}
+				}
+				break;
+			default: break;
+		}
+	}
+	
+	preloadSubCasters(node, dst, true);
+	preloadSubCasters(node, dst, false);
+	
+	KScope root = reqGetRootScope(node);
+	KNode hostNode = root.parent; // where we put the caster-func
+	KCasterFunc cfunc = new KCasterFunc;
+	cfunc.name = casterFuncName;
+	cfunc.dstTyp = dst;
+	cfunc.srcTyp = src;
+	hostNode.addKid(cfunc);
+	return casterFuncName;
+}

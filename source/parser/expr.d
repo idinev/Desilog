@@ -39,6 +39,10 @@ class KExprCmp : KExpr{
 	KExpr y;
 }
 
+class KExprCast : KExpr{
+	KArg arg;
+	string casterFuncName;
+}
 
 
 
@@ -62,10 +66,41 @@ KExprNum makeExprNum(ulong value){
 	return n;
 }
 
+
+
+//=======================================================
+
+private{
+	// Built-in expressions
+	KExpr BuiltinExpr_sizeof(KNode node){
+		req('(');
+		KTyp typ = reqTyp(node);
+		req(')');
+		return makeExprNum(calcTypSizeInBits(typ));
+	}
+	KExpr BuiltinExpr_lengthof(KNode node){
+		req('(');
+		KTyp typ = reqTyp(node);
+		req(')');
+		return makeExprNum(calcTypArrayLength(typ));
+	}
+	KExpr BuiltinExpr_cast(KNode node){
+		KExprCast cc = new KExprCast;
+		req('(');
+		cc.finalTyp = reqTyp(node);
+		req(')');
+		string argName = reqIdent;
+		cc.arg = reqReadArg(argName, node, false);
+		cc.casterFuncName = makeCasterFunc(node, cc.finalTyp, cc.arg.finalTyp);
+		return cc;
+	}
+}
+
 //=======================================================
 
 
 private{
+
 
 	KExpr GetSingleExpr(KNode node) {
 		switch(cc.typ){
@@ -73,23 +108,13 @@ private{
 			{
 				string symName = reqIdent;
 				switch(symName){
-					case "sizeof":
-						req('(');
-						KTyp typ = reqTyp(node);
-						req(')');
-						return makeExprNum(calcTypSizeInBits(typ));
-					case "lengthof":
-						req('(');
-						KTyp typ = reqTyp(node);
-						req(')');
-						return makeExprNum(calcTypArrayLength(typ));
+					case "sizeof":		return BuiltinExpr_sizeof(node);
+					case "lengthof":	return BuiltinExpr_lengthof(node);
+					case "cast":		return BuiltinExpr_cast(node);
 					default:
 					{
-						KNode symbol = node.findNode(symName);
-						if(!symbol) err("Unknown symbol:", symName);
-
 						KExprVar v = new KExprVar();
-						v.arg = ReadArg(symbol, node, false);
+						v.arg = reqReadArg(symName, node, false);
 						v.finalTyp = v.arg.finalTyp;
 						return v;
 					}

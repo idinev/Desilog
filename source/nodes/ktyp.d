@@ -91,6 +91,14 @@ int calcTypArrayLength(KTyp typ){
 	}
 }
 
+string mangledName(KTyp typ){
+	if(typ.kind == KTyp.EKind.kvec){
+		return "vec" ~ to!string(typ.size);
+	}else{
+		return typ.name;
+	}
+}
+
 
 class KMethod : KNode{
 	KTyp[] argTyps;

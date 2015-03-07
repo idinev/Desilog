@@ -225,6 +225,13 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 	return result;
 }
 
+KArg reqReadArg(string symName, KNode node, bool isDest){
+	KNode symbol = node.findNode(symName);
+	if(!symbol) err("Unknown symbol:", symName);
+
+	return ReadArg(symbol, node, isDest);
+}
+
 XOffset ReadXOffset(KNode node){
 	XOffset res;
 	res.exp = ReadExpr(node);
@@ -240,9 +247,7 @@ KArg[] ReadFunctionArgs(KNode node, bool isDest = false){
 	for(;;){
 		if(peek(')'))break;
 		string symName = reqIdent;
-		KNode symbol = node.findNode(symName);
-		if(!symbol)err("Unknown symbol:", symName);
-		KArg arg = ReadArg(symbol, node, isDest);
+		KArg arg = reqReadArg(symName, node, isDest);
 		res ~= arg;
 		if(peek(')'))break;
 		req(',');

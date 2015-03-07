@@ -209,10 +209,7 @@ KStmt[] ReadStatementList(KScope node){
 		}else if(word == "return"){
 			s = ParseStatementReturn(node);
 		}else{
-			KArg dst;
-			KNode symbol = node.findNode(word);
-			if(!symbol)err("Unknown symbol:", word);
-			dst = ReadArg(symbol, node, true);
+			KArg dst = reqReadArg(word, node, true);
 
 			if(cast(KArgObjMethod)dst){
 				s = ParseStatementObjMethod(node, dst);
