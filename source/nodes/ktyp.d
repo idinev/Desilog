@@ -34,26 +34,61 @@ KTyp getCustomSizedVec(int siz){
 	return t;
 }
 
-
-KTyp reqTyp(KNode node){
-	string name = reqIdent;
-
+KTyp getTyp(string name, KNode node){
 	if(name == "vec"){
 		req('[');
 		int siz = reqGetConstIntegerExpr(1, MAX_VEC_SIZE);
 		req(']');
 		return getCustomSizedVec(siz);
 	}
-
+	
 	foreach(t; baseTyps){
 		if(name == t.name)return t;
 	}
-
+	
 	KTyp t = node.findNodeOfKind!KTyp(name);
-	if(t) return t;
+	return t;
+}
+
+
+KTyp reqTyp(KNode node){
+	string name = reqIdent;
+	KTyp t = getTyp(name, node);
+	if(t)return t;
 
 	err("Cannot find type");
 	return null;
+}
+
+int calcTypSizeInBits(KTyp typ){
+	switch(typ.kind){
+		case KTyp.EKind.kvec:
+			return typ.size;
+		case KTyp.EKind.karray:
+			return typ.size * calcTypSizeInBits(typ.base);
+		case KTyp.EKind.kstruct:
+			int siz = 0;
+			foreach(KVar m; typ){
+				siz += calcTypSizeInBits(m.typ);
+			}
+			return siz;
+		case KTyp.EKind.kenum:
+			return logNextPow2(cast(int)typ.kids.length);
+		default:
+			errInternal;
+			return 0;
+	}
+}
+int calcTypArrayLength(KTyp typ){
+	switch(typ.kind){
+		case KTyp.EKind.karray:
+			return typ.size;
+		case KTyp.EKind.kenum:
+			return cast(int)typ.kids.length;
+		default:
+			err("Only arrays and enums have lengthof() value");
+			return 0;
+	}
 }
 
 

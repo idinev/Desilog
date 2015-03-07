@@ -212,15 +212,16 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 	result.proc = proc;
 	result.isDest = isDest;
 
+	if(result.finalTyp){
+		ReadExtraOffsets(result, node, isDest);
+	}
+
 	if(isDest){
 		result.onWrite();
 	}else{
 		result.onRead();
 	}
 
-	if(result.finalTyp){
-		ReadExtraOffsets(result, node, isDest);
-	}
 	return result;
 }
 
@@ -263,7 +264,6 @@ KScope reqGetRootScope(KNode node){
 private{
 	void ReadExtraOffsets(KArg arg, KNode node, bool isDest){
 		for(;;){
-			
 			if(peek('.')){
 				if(arg.finalTyp.kind == KTyp.EKind.kstruct){
 					XOffset off;

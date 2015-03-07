@@ -55,6 +55,12 @@ int reqGetConstIntegerExpr(int imin, int imax){
 	return off.idx;
 }
 
+KExprNum makeExprNum(ulong value){
+	KExprNum n = new KExprNum();
+	n.val = value;
+	n.minBits = minBitsNecessary(value);
+	return n;
+}
 
 //=======================================================
 
@@ -66,13 +72,29 @@ private{
 			case TokTyp.ident:
 			{
 				string symName = reqIdent;
-				KNode symbol = node.findNode(symName);
-				if(!symbol) err("Unknown symbol:", symName);
+				switch(symName){
+					case "sizeof":
+						req('(');
+						KTyp typ = reqTyp(node);
+						req(')');
+						return makeExprNum(calcTypSizeInBits(typ));
+					case "lengthof":
+						req('(');
+						KTyp typ = reqTyp(node);
+						req(')');
+						return makeExprNum(calcTypArrayLength(typ));
+					default:
+					{
+						KNode symbol = node.findNode(symName);
+						if(!symbol) err("Unknown symbol:", symName);
 
-				KExprVar v = new KExprVar();
-				v.arg = ReadArg(symbol, node, false);
-				v.finalTyp = v.arg.finalTyp;
-				return v;
+						KExprVar v = new KExprVar();
+						v.arg = ReadArg(symbol, node, false);
+						v.finalTyp = v.arg.finalTyp;
+						return v;
+					}
+				}
+				break;
 			}
 			case TokTyp.num:
 			{
