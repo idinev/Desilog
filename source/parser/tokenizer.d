@@ -98,7 +98,7 @@ private{
 				nbits = (nbits * 10) + getDecDigitValue(str[i]);
 				i++;
 			}
-			if(nbits > minBits) err("Value cannot to %d bits, as is already %d bits", nbits, minBits);
+			if(nbits < minBits) err("Value cannot fit in ", nbits, " bits, as it needs at least ", minBits, " bits");
 			numBits = nbits;
 		}
 

@@ -34,6 +34,11 @@ class KStmtMux : KStmt{
 	KExpr others;
 };
 
+class KStmtArrMux : KStmt{
+	KExpr mux;
+	KExpr[] values;
+}
+
 class KStmtIfElse : KStmt{
 	struct ICond{
 		KExpr cond; // null for "else"
@@ -41,6 +46,15 @@ class KStmtIfElse : KStmt{
 	};
 	ICond[] conds;
 };
+class KStmtSwitch : KStmt{
+	KExpr mux;
+	struct Entry{
+		int[] icases;
+		KScope block;
+	};
+	Entry[] entries;
+	KScope others;
+}
 
 class KStmtReturn : KStmt{
 	KExpr src;
@@ -75,22 +89,51 @@ int ReqReadEnumValue(KTyp fromEnum){
 	return 0;
 }
 
-KStmt ParseStatementMux(KNode node, KArg dst){
+KTyp VerifyMuxSelector(KExpr mux, ref int imax, string expressionName, int maxBits){
+	KTyp pEnum = null;
+	imax = 0;
+	if(mux.finalTyp.kind == KTyp.EKind.kvec){
+		int isiz = mux.finalTyp.size;
+		if(isiz > maxBits){
+			err(expressionName, " can handle only up to ",maxBits,"-bit selectors");
+		}
+		imax = (1 << isiz)-1;
+	}else if(mux.finalTyp.kind == KTyp.EKind.kenum){
+		pEnum = mux.finalTyp;
+	}else{
+		err(expressionName, " accepts only vectors and enums");
+	}
+	return pEnum;
+}
+
+KStmt ParseStatementArrMux(KScope node, KArg dst){
+	KStmtArrMux s = new KStmtArrMux;
+	s.mux = ReadExpr(node);
+
+	int imax = 0;
+	KTyp pEnum = VerifyMuxSelector(s.mux, imax, "mux[]", 24);
+
+	req(']'); req('{');
+	for(;;){
+		KExpr exp = ReadExpr(node);
+		s.values ~= exp;
+		if(peek('}'))break;
+		req(',');
+	}
+	return s;
+}
+
+
+KStmt ParseStatementMux(KScope node, KArg dst){
+	if(peek('[')){
+		return ParseStatementArrMux(node, dst);
+	}
 	req('(');
 	KStmtMux s = new KStmtMux();
 	s.mux = ReadExpr(node);
 	
-	KTyp pEnum = null;
 	int imax = 0;
-	if(s.mux.finalTyp.kind == KTyp.EKind.kvec){
-		int isiz = s.mux.finalTyp.size;
-		if(isiz > 31) err("mux() can handle only up to 31-bit selectors");
-		imax = (1 << isiz)-1;
-	}else if(s.mux.finalTyp.kind == KTyp.EKind.kenum){
-		pEnum = s.mux.finalTyp;
-	}else{
-		err("mux() accepts only vectors and enums");
-	}
+	KTyp pEnum = VerifyMuxSelector(s.mux, imax, "mux()", 31);
 
 	req(')'); req('{');
 	for(;;){
@@ -104,30 +147,26 @@ KStmt ParseStatementMux(KNode node, KArg dst){
 		KStmtMux.Entry entry;
 		for(;;){
 			int icase;
-			if(pEnum){
-				icase = ReqReadEnumValue(pEnum);
-			}else{
-				icase = reqGetConstIntegerExpr(0, imax);
-			}
+			if(pEnum)	icase = ReqReadEnumValue(pEnum);
+			else		icase = reqGetConstIntegerExpr(0, imax);
 			entry.icases ~= icase;
+
 			if(!peek(','))break;
 		}
 		req(':');
 		entry.value = ReadExpr(node);
 		req(';');
 		s.entries ~= entry;
-	}
-	req(';');
-	
+	}	
 	return s;
 }
 
-KStmt ParseStatementObjMethod(KNode node, KArg dst){
+KStmt ParseStatementObjMethod(KScope node, KArg dst){
 	KStmtObjMethod s = new KStmtObjMethod();
 	return s;
 }
 
-KStmt ParseStatementSet(KNode node, KArg dst){
+KStmt ParseStatementSet(KScope node, KArg dst){
 	if(peek("mux")){
 		return ParseStatementMux(node, dst);
 	}
@@ -136,7 +175,7 @@ KStmt ParseStatementSet(KNode node, KArg dst){
 	return s;
 }
 
-KStmt ParseStatementPick(KNode node, KArg dst){
+KStmt ParseStatementPick(KScope node, KArg dst){
 	KStmtPick s = new KStmtPick();
 	s.src = ReqReadBoolExpr(node);
 	req('?');
@@ -145,7 +184,7 @@ KStmt ParseStatementPick(KNode node, KArg dst){
 	s.fail = ReadExpr(node);
 	return s;
 }
-KStmt ParseStatementIf(KNode node){
+KStmt ParseStatementIf(KScope node){
 	KStmtIfElse s = new KStmtIfElse();
 	bool isElse = false;
 	
@@ -173,12 +212,87 @@ KStmt ParseStatementIf(KNode node){
 	return s;
 }
 
-void ParseStatementVar(KScope node){
+KStmt ParseStatementSwitch(KScope node){
+	KStmtSwitch s = new KStmtSwitch;
+	s.mux = ReadExpr(node);
+
+	int imax = 0;
+	KTyp pEnum = VerifyMuxSelector(s.mux, imax, "mux()", 31);
+
+	req('{');
+
+	KScope curBlock = null;
+
+	for(;;){
+		if(peek('}'))break;
+		if(peek("default")){
+			if(s.others)err("'default:' already specified");
+			req(':');
+			curBlock = new KScope;
+			curBlock.parent = node;
+			s.others = curBlock;
+		}else if(peek("case")){
+			if(s.others)err("Cannot specify 'case' after 'default:' was specified");
+			KStmtSwitch.Entry entry;
+			for(;;){
+				int icase;
+				if(pEnum)	icase = ReqReadEnumValue(pEnum);
+				else		icase = reqGetConstIntegerExpr(0, imax);
+				entry.icases ~= icase;
+
+				if(!peek(','))break;
+			}
+			req(':');
+			curBlock = new KScope;
+			curBlock.parent = node;
+			entry.block = curBlock;
+			s.entries ~= entry;
+		}else{
+			// must be a normal statement
+			if(!curBlock) err("No case/default specified");
+			ReadStatementLine(curBlock, curBlock.code);
+		}
+	}
+
+	return s;
+}
+
+void ParseStatementVar(KScope node, ref KStmt[] code){
 	KScope root = reqGetRootScope(node);
-	KVar base = new KVar;
-	base.storage = KVar.EStor.kvar;
-	
-	ReadVarDecls(root, base);
+	KTyp typ = reqTyp(root);
+
+	for(;;){
+		KVar v = new KVar;
+		v.readName(root);
+		v.typ = typ;
+		v.storage	= KVar.EStor.kvar;
+
+		int setExpr = 0;
+		if(peek('=')){
+			setExpr = 1;
+		}else if(peek("?=")){
+			setExpr = 2;
+		}
+
+		if(setExpr){
+			KArgVar dst = new KArgVar;
+			dst.var = v;
+			dst.finalTyp = v.typ;
+			dst.proc = node;
+			dst.isDest = true;
+			dst.onWrite();
+
+			KStmt s;
+			if(setExpr == 1) s = ParseStatementSet(node, dst);
+			if(setExpr == 2) s = ParseStatementPick(node, dst);
+
+			s.dst = dst;
+			code ~= s;
+		}
+		if(peek(','))continue;
+		break;
+	}
+	req(';');
 }
 
 KStmt ParseStatementReturn(KScope node){
@@ -194,39 +308,45 @@ KStmt ParseStatementReturn(KScope node){
 }
 
 
+void ReadStatementLine(KScope node, ref KStmt[] code){
+	string word = reqIdent;
+	KStmt s;
+	
+	if(word == "var"){
+		ParseStatementVar(node, code);
+		return;
+	}else if(word == "if"){
+		s = ParseStatementIf(node);
+	}else if(word == "return"){
+		s = ParseStatementReturn(node);
+	}else if(word == "switch"){
+		s = ParseStatementSwitch(node);
+	}else{
+		KArg dst = reqReadArg(word, node, true);
+		
+		if(cast(KArgObjMethod)dst){
+			s = ParseStatementObjMethod(node, dst);
+		}else{
+			if(peek('=')){
+				s = ParseStatementSet(node, dst);
+			}else if(peek("?=")){
+				s = ParseStatementPick(node, dst);
+			}else{
+				err("Accepted statement operators are only = and ?=");
+			}
+		}
+		
+		req(';');
+		s.dst = dst;
+	}
+	code ~= s;
+}
+
 KStmt[] ReadStatementList(KScope node){
 	KStmt[] code;
 	for(;;){
 		if(peek('}'))break;
-		string word = reqIdent;
-		KStmt s;
-		
-		if(word == "var"){
-			ParseStatementVar(node);
-			continue;
-		}else if(word == "if"){
-			s = ParseStatementIf(node);
-		}else if(word == "return"){
-			s = ParseStatementReturn(node);
-		}else{
-			KArg dst = reqReadArg(word, node, true);
-
-			if(cast(KArgObjMethod)dst){
-				s = ParseStatementObjMethod(node, dst);
-			}else{
-				if(peek('=')){
-					s = ParseStatementSet(node, dst);
-				}else if(peek("?=")){
-					s = ParseStatementPick(node, dst);
-				}else{
-					err("Accepted statement operators are only = and ?=");
-				}
-			}
-
-			req(';');
-			s.dst = dst;
-		}
-		code ~= s;
+		ReadStatementLine(node, code);
 	}
 	return code;
 }

@@ -119,6 +119,10 @@ use work.desilog.all;
 		return result;
 	}
 
+	string enumName(KTyp typ, int eidx){
+		return typ.name ~ "_" ~ typ.kids[eidx].name;
+	}
+
 	void printVHDLTypeDef(KTyp typ){
 		switch(typ.kind){
 			case KTyp.EKind.kstruct:
@@ -138,7 +142,7 @@ use work.desilog.all;
 				xline("type %s is (", typ.name);
 				foreach(int i, m; typ.kids){
 					if(i)xput(",");
-					xline("	 %s_%s", typ.name, m.name);
+					xline("	 %s", enumName(typ, i));
 				}
 				xput(");\n");
 				break;
@@ -151,7 +155,7 @@ use work.desilog.all;
 	void WriteSizedVectorNum(int siz, ulong value){
 		if(siz < 64){
 			if(siz < 1)err("Size ", siz, " is negative");
-			ulong mask = (1 << siz) - 1;
+			ulong mask = (1UL << cast(ulong)siz) - 1;
 			mask = ~mask;
 			if(mask & value) err("Value ", value, " cannot fit in ", siz, " bits");
 		}
@@ -212,7 +216,7 @@ use work.desilog.all;
 		if(typ.kind == KTyp.EKind.kvec){
 			WriteSizedVectorNum(typ.size, 0);
 		}else if(typ.kind == KTyp.EKind.kenum){
-			xput("%s_%s", typ.name, typ.kids[0].name);
+			xput("%s", enumName(typ, 0));
 		}else if(typ.kind == KTyp.EKind.karray){
 			xput("( others => ");
 			PrintTypeZeroInitter(typ.base);
@@ -697,22 +701,51 @@ use work.desilog.all;
 	void printVHDL(KStmtSet a){
 		PrintAssignLine(a.dst, a.src, "");
 	}
+
+	void printWhenCases(KTyp muxTyp, int[] icases){
+		xline("\twhen ");
+		foreach(int idx, val; icases){
+			if(idx) xput(" | ");
+			if(muxTyp.kind == KTyp.EKind.kenum){
+				xput("%s", enumName(muxTyp, val));
+			}else{
+				WriteSizedVectorNum(muxTyp.size, val);
+			}
+		}
+		xput(" =>\t");
+	}
+
 	void printVHDL(KStmtMux a){
+		xnewline;
 		xline("case ");
 		a.mux.printVHDL();
 		xput(" is");
+
+
 		foreach(e; a.entries){
-			xline("\twhen ");
-			foreach(int idx, val; e.icases){
-				if(idx) xput(" | ");
-				WriteSizedVectorNum(a.mux.finalTyp.size, val);
-			}
-			xput(" =>\t");
+			printWhenCases(a.mux.finalTyp, e.icases);
 			PrintAssign(a.dst, e.value);
 		}
 		if(a.others){
 			xline("\twhen others => ");
 			PrintAssign(a.dst, a.others);
+		}
+
+		xline("end case;");
+	}
+	void printVHDL(KStmtArrMux a){
+		xnewline;
+		xline("case ");
+		a.mux.printVHDL();
+		xput(" is");
+		foreach(int i, e; a.values){
+			if(i+1 < a.values.length){
+				int[1] val; val[0] = i;
+				printWhenCases(a.mux.finalTyp, val);
+			}else{
+				xline("\twhen others =>\t");
+			}
+			PrintAssign(a.dst, e);
 		}
 
 		xline("end case;");
@@ -754,6 +787,31 @@ use work.desilog.all;
 			}
 			xline("end if;");
 		}
+	}
+
+	void printVHDL(KStmtSwitch a){
+		xnewline;
+		xline("case ");
+		a.mux.printVHDL();
+		xput(" is");
+
+		foreach(e; a.entries){
+			printWhenCases(a.mux.finalTyp, e.icases);
+			mIndent+=2;
+			if(!e.block.code.length) xput("null;");
+			foreach(s; e.block.code) s.printVHDL();
+			mIndent-=2;
+		}
+		if(a.others){
+			xline("\twhen others => ");
+			if(!a.others.code.length) xput("null;");
+			mIndent+=2;
+			foreach(s; a.others.code) s.printVHDL();
+			mIndent-=2;
+		}else{
+			xline("\twhen others => null;");
+		}
+		xline("end case;");
 	}
 
 	void PrintEndPointAttr(VEndPoint p, string attr){
@@ -824,7 +882,9 @@ use work.desilog.all;
 	void printVHDL(KStmt s){
 			  if(auto a = cast(KStmtSet)s)		printVHDL(a);
 		else if(auto a = cast(KStmtMux)s)		printVHDL(a);
+		else if(auto a = cast(KStmtArrMux)s)	printVHDL(a);
 		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a);
+		else if(auto a = cast(KStmtSwitch)s)	printVHDL(a);
 		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
 		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
 		else if(auto a = cast(KStmtReturn)s)	printVHDL(a);
