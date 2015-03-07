@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="Generator" content="Kate, the KDE Advanced Text Editor" />
+<title>example0.du</title>
+</head>
+<body>
+<pre style='color:#000000;background-color:#fdfcfa;'>
+<span style='color:#257713;'>/*</span>
+<span style='color:#257713;'>	Example0 for Desilog</span>
+<span style='color:#257713;'>	</span>
+<span style='color:#257713;'>	Compile with </span>
+<span style='color:#257713;'>		desilog -top example0</span>
+<span style='color:#257713;'>			or</span>
+<span style='color:#257713;'>		desilog -top example0 -cd examples/example0</span>
+<span style='color:#257713;'>			or</span>
+<span style='color:#257713;'>		desilog -top example0 -idir examples/example0 -odir examples/example0/autogen</span>
+<span style='color:#257713;'>		</span>
+<span style='color:#257713;'>	</span>
+<span style='color:#257713;'>	Demonstrates a hello-world clocked adder</span>
+<span style='color:#257713;'>		(Example1 was too complex...)</span>
+<span style='color:#257713;'>*/</span>
+<b><span style='color:#800000;'>entity</span></b> Example0<b><span style='color:#0000c0;'>{</span></b>
+	<b><span style='color:#800080;'>clock</span></b> clk<b><span style='color:#0000c0;'>;</span></b>			<span style='color:#257713;'>// clocks are handles/structs, which contain a &quot;clk&quot; bit and &quot;reset_n&quot; synchronous bit. </span>
+	
+	<b><span style='color:#800080;'>in</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;{</span></b>		<span style='color:#257713;'>// when Example2's &quot;reg&quot; inputs are written, they're always written synchronously to the specified &lt;clk&gt;. </span>
+		<b><span style='color:#a71aae;'>bit</span></b> doAdd<b><span style='color:#0000c0;'>;</span></b> 		<span style='color:#257713;'>// a single bit, can be used as a boolean. Desilog doesn't have explicit booleans, any 1-bit value will do. Here we use: 0 = subtract, 1 = add</span>
+		<b><span style='color:#a71aae;'>u8</span></b> xx<b><span style='color:#0000c0;'>,</span></b> yy<b><span style='color:#0000c0;'>;</span></b>		
+	<b><span style='color:#0000c0;'>}</span></b>
+	
+	<b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;</span></b> <b><span style='color:#a71aae;'>u8</span></b> zz<b><span style='color:#0000c0;'>;</span></b>	<span style='color:#257713;'>// a register, clocked and reset by &quot;clk&quot;. No reset value provided here, so won't be reset. </span>
+	<b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;{</span></b>
+		<b><span style='color:#a71aae;'>u8</span></b> and_result_reg <b><span style='color:#0000c0;'>=</span></b> <b>0x55</b><b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// on sync-reset, gets this value</span>
+	<b><span style='color:#0000c0;'>}</span></b>
+	<b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>wire</span></b> 	<b><span style='color:#a71aae;'>u8</span></b> xor_result_wire<b><span style='color:#0000c0;'>;</span></b>
+	<b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>latch</span></b> 	<b><span style='color:#a71aae;'>u8</span></b> or_result_latch<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+
+<b><span style='color:#800000;'>unit</span></b> Example0<b><span style='color:#0000c0;'>{</span></b>	<span style='color:#257713;'>// &quot;architecture&quot; of Example0</span>
+
+	<b><span style='color:#000080;'>on_clock</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;</span></b> myProcess<b><span style='color:#0000c0;'>{</span></b> <span style='color:#257713;'>// on every clock</span>
+		and_result_reg <b><span style='color:#0000c0;'>=</span></b> xx <b><span style='color:#0000c0;'>&amp;</span></b> yy<b><span style='color:#0000c0;'>;</span></b>
+		xor_result_wire <b><span style='color:#0000c0;'>=</span></b> xx <b><span style='color:#0000c0;'>^</span></b> yy<b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// notice, we can write to async signals from a clocked-process</span>
+		
+		<b><span style='color:#0000ff;'>if</span></b> doAdd<b><span style='color:#0000c0;'>{</span></b>
+			zz <b><span style='color:#0000c0;'>=</span></b> xx <b><span style='color:#0000c0;'>+</span></b> yy<b><span style='color:#0000c0;'>;</span></b>
+		<b><span style='color:#0000c0;'>}</span></b><b><span style='color:#0000ff;'>else</span></b><b><span style='color:#0000c0;'>{</span></b>
+			zz <b><span style='color:#0000c0;'>=</span></b> xx <b><span style='color:#0000c0;'>-</span></b> yy<b><span style='color:#0000c0;'>;</span></b>
+		<b><span style='color:#0000c0;'>}</span></b>
+	<b><span style='color:#0000c0;'>}</span></b>
+	
+	<b><span style='color:#000080;'>combi</span></b><b><span style='color:#0000c0;'>{</span></b> <span style='color:#257713;'>// asynchronous process</span>
+		or_result_latch <b><span style='color:#0000c0;'>=</span></b> xx <b><span style='color:#0000c0;'>|</span></b> yy<b><span style='color:#0000c0;'>;</span></b>
+		
+		<b><span style='color:#0000ff;'>if</span></b> and_result_reg<b><span style='color:#0000c0;'>[</span></b><b>4</b><b><span style='color:#0000c0;'>]{</span></b> <span style='color:#257713;'>// if bit 4 is set</span>
+			or_result_latch <b><span style='color:#0000c0;'>=</span></b> xx<b><span style='color:#0000c0;'>;</span></b>
+		<b><span style='color:#0000c0;'>}</span></b>
+		<b><span style='color:#0000ff;'>if</span></b><b><span style='color:#0000c0;'>(</span></b>zz<b><span style='color:#0000c0;'>[</span></b><b>0</b><b><span style='color:#0000c0;'>,</span></b><b>3</b><b><span style='color:#0000c0;'>]</span></b> <b><span style='color:#0000c0;'>==</span></b> <b>5</b><b><span style='color:#0000c0;'>){</span></b> <span style='color:#257713;'>// if the lower 3 bits are '101'</span>
+			or_result_latch <b><span style='color:#0000c0;'>=</span></b> <b><span style='color:#0000c0;'>!</span></b>yy<b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// complementary-not of 8 bits</span>
+		<b><span style='color:#0000c0;'>}</span></b>
+	<b><span style='color:#0000c0;'>}</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+
+
+<b><span style='color:#800000;'>testbench</span></b> example0_tb<b><span style='color:#0000c0;'>&lt;</span></b>Example0<b><span style='color:#0000c0;'>&gt;{</span></b> <span style='color:#257713;'>// drives &quot;clk&quot;</span>
+	force<b><span style='color:#0000c0;'>{</span></b> <span style='color:#257713;'>// keep these inputs constant</span>
+		doAdd <b><span style='color:#0000c0;'>=</span></b> <b>1</b><b><span style='color:#0000c0;'>;</span></b>
+	<b><span style='color:#0000c0;'>}</span></b>
+
+	verify<b><span style='color:#0000c0;'>(</span></b><b>3</b><b><span style='color:#0000c0;'>,</span></b><b>2</b><b><span style='color:#0000c0;'>)</span></b>  <span style='color:#257713;'>// starting from clock 3 after reset_n='1', specify input-values, and 2 clocks later verify output-values</span>
+		<b><span style='color:#800080;'>in</span></b><b><span style='color:#0000c0;'>(</span></b>xx<b><span style='color:#0000c0;'>,</span></b>yy<b><span style='color:#0000c0;'>)</span></b> 
+		<b><span style='color:#800080;'>out</span></b><b><span style='color:#0000c0;'>(</span></b>zz<b><span style='color:#0000c0;'>,</span></b> and_result_reg<b><span style='color:#0000c0;'>)</span></b>
+	<b><span style='color:#0000c0;'>{</span></b>
+		<b>6</b><b><span style='color:#0000c0;'>,</span></b> <b>10</b>   	<b><span style='color:#0000c0;'>:</span></b>  <b>16</b><b><span style='color:#0000c0;'>,</span></b> <b>2</b><b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// on clock 3, set xx=6, yy=10. 2 clocks later verify zz=16 and and_result_reg=2</span>
+		<b>0x33</b><b><span style='color:#0000c0;'>,</span></b> <b>0x55</b>	<b><span style='color:#0000c0;'>:</span></b>  <b>0x88</b><b><span style='color:#0000c0;'>,</span></b> <b>0x11</b><b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// on clock 4</span>
+	<b><span style='color:#0000c0;'>}</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+</pre>
+</body>
+</html>
