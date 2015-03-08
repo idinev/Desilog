@@ -1,0 +1,39 @@
+// the package-name depends on the file-name. Here it's "mypack"
+// if it was in a sub-folder "mdir", it'd be called "mdir.mypack"
+
+struct MEM_CTL{
+	bit act, write;
+	u8 addr;
+	u8 wdata;
+}
+
+struct MEM_RES{
+	bit valid, busy;
+	u8 rdata;
+}
+
+enum MyEnum{
+	one,
+	two,
+	three
+}
+
+
+type myVec55 vec[55];
+type myArr256_u8 u8[256];
+
+define CONST_NEXTDATA = 0x22;
+define CONST2 = 44;
+define EXPR1 = var1 + var2 + someFunc(var3);
+
+
+func u8 DoXorAnd(u8 aa,bb; bit isXor){
+	var u8 result;
+	if isXor{
+		result = aa ^ bb;
+	}else{
+		result = aa & bb;
+	}
+	return result;
+}
+

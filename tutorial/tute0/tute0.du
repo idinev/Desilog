@@ -1,0 +1,72 @@
+/*
+	Tutorial0 for Desilog
+	
+	Compile with 
+		desilog -top tute0
+	Compile+run through ModelSim with
+		desilog -top tute0 -tb.vsim tute0_tb
+	Generates files in the "autogen/" folder
+	
+	View the src_tute0.html for syntax-hilighted version.
+	Demonstrates a hello-world unit, with a testbench
+	
+*/
+ 
+ 
+entity tute0{		// just like in VHDL, describes ports
+	clock clk;		// clocks are read-only input handles. They have the ".clk" and ".reset" read-only properties
+	in reg<clk>{	// input registers, expected to have been clocked by "clk"
+		u8 xx, yy;	// 8-bit 
+	}
+	in wire u8 someUnused; // for input wires/latches, input can also come from registers
+	
+	out reg<clk> u8 sum;	// output register, clocked by "clk"
+	out reg<clk> u8 totalSum = 0; // sync-reset to this value when "clk.reset" is active
+	
+	out wire  u8 outXorWire;
+	out latch u8 outLatch;
+}
+
+
+unit tute0{ // just like "architecture" in VHDL
+	
+	reg<clk> u4 counter = 0; // a 4-bit register, reset to 0
+	
+	combi{
+		if(xx==0x55){
+			outLatch = yy;
+		}
+	}
+	
+	on_clock<clk> MyProcess{
+		var u8 varSum; // a local "variable". It's ensured to be a wire
+		
+		varSum = xx + yy;
+		sum = varSum;
+		
+		totalSum = totalSum + varSum;
+		if(counter==5){
+			totalSum = varSum;
+		}
+		
+		outXorWire = xx ^ yy; // note, we can write to wires from within a clocked process, finally!
+		counter++;
+	}
+}
+
+
+
+testbench tute0 tute0_tb{ // optional, a testbench
+	force{ // keep these inputs constant
+		someUnused = 0x77;
+	}
+	
+	verify(5,2) // 5 cycles after reset, on every clock provide some values to inputs, and 2 cycles later verify the outputs match requirements
+		in(xx, yy) // we'll provide values for these inputs
+		out(sum, totalSum) // we'll verify the values of these outputs
+	{
+		3,4			: 7,7;	// on clock 5, set xx=3,yy=4  ; 2 clocks later verify sum==7,totalSum==7
+		0x55,0x11	: 0x66, 0x6D;
+		1,1			: 2, 0x6F;
+	}
+}

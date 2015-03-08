@@ -1,0 +1,55 @@
+/*
+	Tutorial1 for Desilog
+	
+	Compile with 
+		desilog -top tute1
+		
+	
+	View the src_tute1.html for syntax-hilighted version.
+	Demonstrates sub-unit instantiation and (the optional) linking
+	
+*/
+ 
+ 
+//-------[ MyAdder ]------------[
+entity MyAdder{
+	clock clkAdd;
+	in reg<clkAdd> u8 x,y;
+	out reg<clkAdd> u8 zout;
+}
+
+unit MyAdder{
+	on_clock<clkAdd> main{
+		zout = x + y;
+	}
+}
+//------------------------------/
+
+
+entity tute1{
+	clock clk;
+	out reg<clk> u8 oout;
+}
+
+unit tute1{
+	sub_unit<clk>	MyAdder madd;	// sub-unit instance, with specified main clock
+	sub_unit 		MyAdder madd2;	// clock not specified, should be linked
+	
+	link{ // linking is like port-mapping
+		madd2.clkAdd = clk;	// link clkAdd to source directly from clk 
+		madd2.x = madd.zout;
+	}
+	
+	on_clock<clk> main{
+		madd.x = 1;
+		madd.y = 2;
+		
+		madd2.y = 5;
+		
+		oout = madd.zout + madd2.zout;
+	}
+}
+
+testbench tute1 tute1_tb{
+	// nothing here, so only clock/reset are driven
+}

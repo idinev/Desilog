@@ -1,0 +1,14 @@
+
+import mypack;
+
+// a package, used to describe many entities
+
+entity tute2{
+	clock clk;
+	
+	in reg<clk>		MEM_CTL	memctl;
+	out reg<clk>	MEM_RES	memres;
+	
+	out wire u8 resXorAnd;
+}
+ 

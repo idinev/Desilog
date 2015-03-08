@@ -1,0 +1,67 @@
+/*
+	Tutorial2 for Desilog
+	
+	Compile with 
+		desilog -top tute2
+		
+	Demonstrates packages, structs, enums, defines, types
+	
+*/
+
+
+import mypack;
+import myentities;
+
+
+unit tute2{
+	
+	// we can define  "type/enum/struct/define" here, too
+	type myArr16_u4  u4[16];
+	
+	enum LOC_FSM{
+		state1,
+		state2,
+		idle
+	}
+	
+	reg<clk>{
+		u8 nextData = CONST_NEXTDATA; // uses the 'define' value as tokens
+		
+		MyEnum fsm = MyEnum.one;
+	}
+	
+	
+	
+	on_clock<clk> main{
+		memres.valid = 0;
+		memres.busy = 0;
+		
+		if memctl.act {
+			if memctl.write {
+				nextData = memctl.wdata;
+			}else{
+				memres.rdata = nextData;
+				memres.valid = 1;
+				nextData++;
+			}
+		}
+		
+		resXorAnd = DoXorAnd(memctl.wdata, nextData, 1);
+	}
+}
+
+
+testbench tute2 tute2_tb{
+	verify(3,3)
+		in (memctl.act, memctl.write, memctl.wdata)
+		out ()
+	{
+		1,1, 0x50 : ;
+		0,0, 0 : ;
+		1,0, 0 : ;
+		1,0, 0 : ;
+		0,0, 0 : ;
+		1,1, 0x90 : ;
+		0,0, 0 : ;
+	}
+}

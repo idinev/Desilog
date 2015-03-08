@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="Generator" content="Kate, the KDE Advanced Text Editor" />
+<title>mypack.dpack</title>
+</head>
+<body>
+<pre style='color:#000000;background-color:#fdfcfa;'>
+<span style='color:#257713;'>// the package-name depends on the file-name. Here it's &quot;mypack&quot;</span>
+<span style='color:#257713;'>// if it was in a sub-folder &quot;mdir&quot;, it'd be called &quot;mdir.mypack&quot;</span>
+
+<b><span style='color:#800000;'>struct</span></b> MEM_CTL<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#a71aae;'>bit</span></b> act<b><span style='color:#0000c0;'>,</span></b> write<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#a71aae;'>u8</span></b> addr<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#a71aae;'>u8</span></b> wdata<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+<b><span style='color:#800000;'>struct</span></b> MEM_RES<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#a71aae;'>bit</span></b> valid<b><span style='color:#0000c0;'>,</span></b> busy<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#a71aae;'>u8</span></b> rdata<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+<b><span style='color:#800000;'>enum</span></b> MyEnum<b><span style='color:#0000c0;'>{</span></b>
+    one<b><span style='color:#0000c0;'>,</span></b>
+    two<b><span style='color:#0000c0;'>,</span></b>
+    three
+<b><span style='color:#0000c0;'>}</span></b>
+
+
+<b><span style='color:#800000;'>type</span></b> myVec55 <b><span style='color:#a71aae;'>vec</span></b><b><span style='color:#0000c0;'>[</span></b><b>55</b><b><span style='color:#0000c0;'>];</span></b>
+<b><span style='color:#800000;'>type</span></b> myArr256_u8 <b><span style='color:#a71aae;'>u8</span></b><b><span style='color:#0000c0;'>[</span></b><b>256</b><b><span style='color:#0000c0;'>];</span></b>
+
+<b><span style='color:#800000;'>define</span></b> CONST_NEXTDATA <b><span style='color:#0000c0;'>=</span></b> <b>0x22</b><b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#800000;'>define</span></b> CONST2 <b><span style='color:#0000c0;'>=</span></b> <b>44</b><b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#800000;'>define</span></b> EXPR1 <b><span style='color:#0000c0;'>=</span></b> var1 <b><span style='color:#0000c0;'>+</span></b> var2 <b><span style='color:#0000c0;'>+</span></b> someFunc<b><span style='color:#0000c0;'>(</span></b>var3<b><span style='color:#0000c0;'>);</span></b>
+
+
+<b><span style='color:#000080;'>func</span></b> <b><span style='color:#a71aae;'>u8</span></b> DoXorAnd<b><span style='color:#0000c0;'>(</span></b><b><span style='color:#a71aae;'>u8</span></b> aa<b><span style='color:#0000c0;'>,</span></b>bb<b><span style='color:#0000c0;'>;</span></b> <b><span style='color:#a71aae;'>bit</span></b> isXor<b><span style='color:#0000c0;'>){</span></b>
+    <b><span style='color:#800080;'>var</span></b> <b><span style='color:#a71aae;'>u8</span></b> result<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000ff;'>if</span></b> isXor<b><span style='color:#0000c0;'>{</span></b>
+        result <b><span style='color:#0000c0;'>=</span></b> aa <b><span style='color:#0000c0;'>^</span></b> bb<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000c0;'>}</span></b><b><span style='color:#0000ff;'>else</span></b><b><span style='color:#0000c0;'>{</span></b>
+        result <b><span style='color:#0000c0;'>=</span></b> aa <b><span style='color:#0000c0;'>&amp;</span></b> bb<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000c0;'>}</span></b>
+    <b><span style='color:#0000ff;'>return</span></b> result<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+</pre>
+</body>
+</html>

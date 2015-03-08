@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="Generator" content="Kate, the KDE Advanced Text Editor" />
+<title>tute1.du</title>
+</head>
+<body>
+<pre style='color:#000000;background-color:#fdfcfa;'>
+<span style='color:#257713;'>/*</span>
+<span style='color:#257713;'>    Tutorial1 for Desilog</span>
+<span style='color:#257713;'>    </span>
+<span style='color:#257713;'>    Compile with </span>
+<span style='color:#257713;'>        desilog -top tute1</span>
+<span style='color:#257713;'>        </span>
+<span style='color:#257713;'>    </span>
+<span style='color:#257713;'>    View the src_tute1.html for syntax-hilighted version.</span>
+<span style='color:#257713;'>    Demonstrates sub-unit instantiation and (the optional) linking</span>
+<span style='color:#257713;'>    </span>
+<span style='color:#257713;'>*/</span>
+ 
+ 
+<span style='color:#257713;'>//-------[ MyAdder ]------------[</span>
+<b><span style='color:#800000;'>entity</span></b> MyAdder<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#800080;'>clock</span></b> clkAdd<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#800080;'>in</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clkAdd<b><span style='color:#0000c0;'>&gt;</span></b> <b><span style='color:#a71aae;'>u8</span></b> x<b><span style='color:#0000c0;'>,</span></b>y<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clkAdd<b><span style='color:#0000c0;'>&gt;</span></b> <b><span style='color:#a71aae;'>u8</span></b> zout<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+<b><span style='color:#800000;'>unit</span></b> MyAdder<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#000080;'>on_clock</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clkAdd<b><span style='color:#0000c0;'>&gt;</span></b> main<b><span style='color:#0000c0;'>{</span></b>
+        zout <b><span style='color:#0000c0;'>=</span></b> x <b><span style='color:#0000c0;'>+</span></b> y<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000c0;'>}</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+<span style='color:#257713;'>//------------------------------/</span>
+
+
+<b><span style='color:#800000;'>entity</span></b> tute1<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#800080;'>clock</span></b> clk<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#800080;'>out</span></b> <b><span style='color:#800080;'>reg</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;</span></b> <b><span style='color:#a71aae;'>u8</span></b> oout<b><span style='color:#0000c0;'>;</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+<b><span style='color:#800000;'>unit</span></b> tute1<b><span style='color:#0000c0;'>{</span></b>
+    <b><span style='color:#800080;'>sub_unit</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;</span></b>   MyAdder madd<b><span style='color:#0000c0;'>;</span></b>   <span style='color:#257713;'>// sub-unit instance, with specified main clock</span>
+    <b><span style='color:#800080;'>sub_unit</span></b>        MyAdder madd2<b><span style='color:#0000c0;'>;</span></b>  <span style='color:#257713;'>// clock not specified, should be linked</span>
+    
+    <b><span style='color:#000080;'>link</span></b><b><span style='color:#0000c0;'>{</span></b> <span style='color:#257713;'>// linking is like port-mapping</span>
+        madd2.clkAdd <b><span style='color:#0000c0;'>=</span></b> clk<b><span style='color:#0000c0;'>;</span></b> <span style='color:#257713;'>// link clkAdd to source directly from clk </span>
+        madd2.x <b><span style='color:#0000c0;'>=</span></b> madd.zout<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000c0;'>}</span></b>
+    
+    <b><span style='color:#000080;'>on_clock</span></b><b><span style='color:#0000c0;'>&lt;</span></b>clk<b><span style='color:#0000c0;'>&gt;</span></b> main<b><span style='color:#0000c0;'>{</span></b>
+        madd.x <b><span style='color:#0000c0;'>=</span></b> <b>1</b><b><span style='color:#0000c0;'>;</span></b>
+        madd.y <b><span style='color:#0000c0;'>=</span></b> <b>2</b><b><span style='color:#0000c0;'>;</span></b>
+        
+        madd2.y <b><span style='color:#0000c0;'>=</span></b> <b>5</b><b><span style='color:#0000c0;'>;</span></b>
+        
+        oout <b><span style='color:#0000c0;'>=</span></b> madd.zout <b><span style='color:#0000c0;'>+</span></b> madd2.zout<b><span style='color:#0000c0;'>;</span></b>
+    <b><span style='color:#0000c0;'>}</span></b>
+<b><span style='color:#0000c0;'>}</span></b>
+
+<b><span style='color:#800000;'>testbench</span></b> tute1 tute1_tb<b><span style='color:#0000c0;'>{</span></b>
+    <span style='color:#257713;'>// nothing here, so only clock/reset are driven</span>
+<b><span style='color:#0000c0;'>}</span></b>
+</pre>
+</body>
+</html>

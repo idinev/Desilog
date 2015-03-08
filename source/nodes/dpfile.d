@@ -210,6 +210,15 @@ DPFile OnAddProjPack(DProj proj, string uri){
 		}
 	}
 
+
+	// elaborate package-functions
+	foreach(KScope proc; file){
+		if(cast(KLink)proc)continue; // ignore links
+		curTokenizer.startFrom(proc.curlyStart);
+		
+		proc.code = ReadStatementList(proc);
+	}
+
 	g_curNodeWithDefs = prevNodeWithDefs;
 	curTokenizer = prevTokzer;
 	curTokenizer.back();
@@ -269,7 +278,6 @@ void OnAddProjUnit(DProj proj, string uri){
 
 			proc.code = ReadStatementList(proc);
 		}
-
 	}
 
 	g_curNodeWithDefs = file;
