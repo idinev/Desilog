@@ -193,7 +193,7 @@ private{
 
 KArg ReadArg(KNode symbol, KNode node, bool isDest){
 	KArg result;
-	KScope proc = reqGetRootScope(node);
+	KScope proc = GetRootScope(node);
 	if(KVar var = cast(KVar)symbol){
 		KArgVar arg = new KArgVar;
 		arg.var = var;
@@ -255,15 +255,20 @@ KArg[] ReadFunctionArgs(KNode node, bool isDest = false){
 	return res;
 }
 
-KScope reqGetRootScope(KNode node){
+KScope GetRootScope(KNode node){
 	KNode found = null;
 	for(KNode n = node; n; n = n.parent){
 		if(cast(KScope)n){
 			found = n;
 		}
 	}
+	return cast(KScope)found;
+}
+
+KScope reqGetRootScope(KNode node){
+	KScope found = GetRootScope(node);
 	if(!found) err("Node is not in a process/scope");
-	return cast(KScope) found;
+	return found;
 }
 
 private{
@@ -332,7 +337,7 @@ private{
 		if(var.Is.writeOnly)err("Write-only variable");
 		var.Is.everRead = true;
 
-		if(!reader.varsRead.canFind(var)){
+		if(reader && !reader.varsRead.canFind(var)){
 			reader.varsRead ~= var;
 		}
 	}

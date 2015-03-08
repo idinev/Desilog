@@ -24,6 +24,10 @@ class KStmtPick : KStmt{
 	KExpr fail;
 };
 
+class KStmtIncDec : KStmt{
+	bool inc;
+}
+
 class KStmtMux : KStmt{
 	KExpr mux;
 	struct Entry{
@@ -74,9 +78,12 @@ KExpr ReqReadBoolExpr(KNode node){
 	return e;
 }
 
-int ReqReadEnumValue(KTyp fromEnum){
-	req(fromEnum.name);
-	req('.');
+int ReqReadEnumValue(KTyp fromEnum, bool readEnumName){
+	if(readEnumName){
+		req(fromEnum.name);
+		req('.');
+	}
+
 	string ename = reqIdent;
 
 	foreach(int eidx, m; fromEnum.kids){
@@ -147,7 +154,7 @@ KStmt ParseStatementMux(KScope node, KArg dst){
 		KStmtMux.Entry entry;
 		for(;;){
 			int icase;
-			if(pEnum)	icase = ReqReadEnumValue(pEnum);
+			if(pEnum)	icase = ReqReadEnumValue(pEnum, true);
 			else		icase = reqGetConstIntegerExpr(0, imax);
 			entry.icases ~= icase;
 
@@ -184,6 +191,18 @@ KStmt ParseStatementPick(KScope node, KArg dst){
 	s.fail = ReadExpr(node);
 	return s;
 }
+
+KStmt ParseStatementIncDec(KScope node, KArg dst, bool inc){
+	if(dst.finalTyp.kind != KTyp.EKind.kvec){
+		err("Operators ++ and -- can be applied to vectors, as single-line statements");
+	}
+
+	auto s = new KStmtIncDec;
+	s.inc = inc;
+	dst.onRead();
+	return s;
+}
+
 KStmt ParseStatementIf(KScope node){
 	KStmtIfElse s = new KStmtIfElse();
 	bool isElse = false;
@@ -236,7 +255,7 @@ KStmt ParseStatementSwitch(KScope node){
 			KStmtSwitch.Entry entry;
 			for(;;){
 				int icase;
-				if(pEnum)	icase = ReqReadEnumValue(pEnum);
+				if(pEnum)	icase = ReqReadEnumValue(pEnum, true);
 				else		icase = reqGetConstIntegerExpr(0, imax);
 				entry.icases ~= icase;
 
@@ -331,6 +350,10 @@ void ReadStatementLine(KScope node, ref KStmt[] code){
 				s = ParseStatementSet(node, dst);
 			}else if(peek("?=")){
 				s = ParseStatementPick(node, dst);
+			}else if(peek("++")){
+				s = ParseStatementIncDec(node, dst, true);
+			}else if(peek("--")){
+				s = ParseStatementIncDec(node, dst, false);
 			}else{
 				err("Accepted statement operators are only = and ?=");
 			}

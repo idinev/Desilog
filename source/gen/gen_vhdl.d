@@ -27,6 +27,9 @@ private{
 	void xput(T...)(T args){
 		vhdlOut.writef(args);
 	}
+	void xput(string str){
+		vhdlOut.write(str);
+	}
 	void xline(T...)(T args){
 		vhdlOut.writef("\n");
 		foreach(i; 0..mIndent) vhdlOut.writef("\t");
@@ -84,7 +87,7 @@ use work.desilog.all;
 
 	/*
 	void printKName(KNode node){
-		xput("%s", node.name);
+		xputs(node.name);
 	}
 	void printKTyp(KTyp typ){
 		if(typ.kind == KTyp.EKind.kvec && typ.size==1){
@@ -216,7 +219,7 @@ use work.desilog.all;
 		if(typ.kind == KTyp.EKind.kvec){
 			WriteSizedVectorNum(typ.size, 0);
 		}else if(typ.kind == KTyp.EKind.kenum){
-			xput("%s", enumName(typ, 0));
+			xput(enumName(typ, 0));
 		}else if(typ.kind == KTyp.EKind.karray){
 			xput("( others => ");
 			PrintTypeZeroInitter(typ.base);
@@ -707,7 +710,7 @@ use work.desilog.all;
 		foreach(int idx, val; icases){
 			if(idx) xput(" | ");
 			if(muxTyp.kind == KTyp.EKind.kenum){
-				xput("%s", enumName(muxTyp, val));
+				xput(enumName(muxTyp, val));
 			}else{
 				WriteSizedVectorNum(muxTyp.size, val);
 			}
@@ -759,6 +762,19 @@ use work.desilog.all;
 		xline("else");
 		PrintAssignLine(a.dst, a.fail, "\t");
 		xline("end if;");
+	}
+
+	void printVHDL(KStmtIncDec a){
+		xline("");
+		a.dst.printVHDL();
+
+		assert(a.dst.isDest);
+		a.dst.isDest = false;
+		a.dst.printVHDL();
+		a.dst.isDest = true;
+		xput(a.inc ? " + " : " - ");
+		WriteSizedVectorNum(a.dst.finalTyp.size, 1);
+		xput(";");
 	}
 
 	void printVHDL(KStmtReturn a){
@@ -816,14 +832,14 @@ use work.desilog.all;
 
 	void PrintEndPointAttr(VEndPoint p, string attr){
 		if(p.var){
-			xput("%s",varName(p.var, false));
+			xput(varName(p.var, false));
 			if(p.arrSubIdx){
 				xput("(%d)", p.arrSubIdx - 1);
 			}
 			if(p.arrVarIdx){
 				xput("(%d)", p.arrVarIdx - 1);
 			}
-			xput("%s", attr);
+			xput(attr);
 		}else if(p.clk){
 			if(p.sub){
 				xput("%s_", p.sub.name);
@@ -888,6 +904,7 @@ use work.desilog.all;
 		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
 		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
 		else if(auto a = cast(KStmtReturn)s)	printVHDL(a);
+		else if(auto a = cast(KStmtIncDec)s)	printVHDL(a);
 		else errInternal;
 	}
 
@@ -903,6 +920,7 @@ use work.desilog.all;
 		else if(auto a = cast(KExprUnary)k) printVHDL(a);
 		else if(auto a = cast(KExprCmp)k) printVHDL(a);
 		else if(auto a = cast(KExprCast)k)printVHDL(a);
+		else if(auto a = cast(KExprEnumMemb)k)printVHDL(a);
 		else errInternal;
 	}
 
@@ -969,12 +987,12 @@ use work.desilog.all;
 	}
 
 	void printVHDL(KArgVar arg){
-		xput("%s", varName(arg.var, arg.isDest));
+		xput(varName(arg.var, arg.isDest));
 
 		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}
 	void printVHDL(KArgSubuPort arg){
-		xput("%s", varName(arg.var, arg.isDest));
+		xput(varName(arg.var, arg.isDest));
 		if(arg.sub.isArray){
 			vhdlPrintArrayElement(arg.arrIdx.exp, arg.arrIdx.idx);
 		}
@@ -1070,6 +1088,9 @@ use work.desilog.all;
 		xput("%s(", k.casterFuncName);
 		k.arg.printVHDL();
 		xput(")");
+	}
+	void printVHDL(KExprEnumMemb k){
+		xput(enumName(k.finalTyp, k.eidx));
 	}
 
 

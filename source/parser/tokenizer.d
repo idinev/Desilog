@@ -10,7 +10,7 @@ immutable auto triOps = [
 	">>>"
 ];
 immutable auto duoOps = [
-	"?=", "==", "!=", ">=", "<="
+	"?=", "==", "!=", ">=", "<=", "++", "--"
 ];
 immutable auto singleOps = `{}()[]<>=+-*/^&~.;,:!?|`;
 

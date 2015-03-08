@@ -44,6 +44,10 @@ class KExprCast : KExpr{
 	string casterFuncName;
 }
 
+class KExprEnumMemb : KExpr{
+	int eidx; 
+}
+
 
 
 int reqGetConstIntegerExpr(int imin, int imax){
@@ -94,6 +98,19 @@ private{
 		cc.casterFuncName = makeCasterFunc(node, cc.finalTyp, cc.arg.finalTyp);
 		return cc;
 	}
+
+	KExpr BuiltinExpr_Typ(KNode node, KTyp typ){
+		if(typ.kind == KTyp.EKind.kenum){
+			auto e = new KExprEnumMemb;
+			e.finalTyp = typ;
+			req('.');
+			e.eidx = ReqReadEnumValue(typ, false);
+			return e;
+		}else{
+			err("Unhandled type as expression. Only enums allowed");
+		}
+		return null;
+	}
 }
 
 //=======================================================
@@ -113,8 +130,12 @@ private{
 					case "cast":		return BuiltinExpr_cast(node);
 					default:
 					{
+						KNode symbol = node.findNode(symName);
+						if(!symbol) err("Unknown symbol:", symName);
+						if(auto typ = cast(KTyp)symbol) return BuiltinExpr_Typ(node, typ);
+
 						KExprVar v = new KExprVar();
-						v.arg = reqReadArg(symName, node, false);
+						v.arg = ReadArg(symbol, node, false);
 						v.finalTyp = v.arg.finalTyp;
 						return v;
 					}
