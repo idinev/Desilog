@@ -4,6 +4,8 @@ import std.file;
 import std.stdio;
 import std.conv;
 import common; 
+import gen.gen_vhdl;
+import gen.run_vsim;
 
 // Example cmdline:
 //   desilog -top ram.ram -idir ../examples/unittests -odir ../examples/out
@@ -14,6 +16,8 @@ string cfgInDir;
 string cfgChgDir;
 string cfgTop;
 int    cfgTestBenchPeriod = 10; // how many picoseconds per period
+int    cfgTestBenchDuration = 300; // duration of the testbench
+string cfgTestBenchVSim;
 bool   cfgDevErr = false;
 bool   cfgDevAst = false;
 
@@ -30,6 +34,7 @@ Example:
 		-cd	 <dirname>		Change to specified folder at beginning.
 		-idir <dirname>		Folder containing sourcecode .du and .dpack files. Default is current-folder.
 		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen"  .
+		-tb.vsim <name>		Run the specified bench through ModelSim's vsim. 
 		-tb.period <num>	Clock-period in picoseconds of the generated test-benches. Default is 10ps.
 		-dev.err			Print stacktrace on compile-error, useful for debugging. 
 		-dev.ast			Dump AST, useful for debugging
@@ -55,9 +60,18 @@ Example:
 				case "-top":
 					cfgTop = cmdArgs[aidx++];
 					break;
+				case "-tb.vsim":
+					cfgTestBenchVSim = cmdArgs[aidx++];
+					break;
 				case "-tb.period":
 					string strPS = cmdArgs[aidx++];
 					cfgTestBenchPeriod = to!int(strPS);
+					break;
+				case "-dev.err":
+					cfgDevErr = true;
+					break;
+				case "-dev.ast":
+					cfgDevAst = true;
 					break;
 				default:
 					stderr.writefln("Error: unknown cmd arg: %s", arg);
@@ -104,6 +118,11 @@ int main(string[] cmdArgs) {
 		chdir(cfgOutDir);
 
 		GenerateAllVHDL(proj);
+
+		if(cfgTestBenchVSim){
+			RunVSimOnVHDLFiles(cfgTestBenchVSim);
+		}
+
 		chdir(startDir);
 	} catch (Exception e) {
 		writeln("Failed: ", e.msg);
