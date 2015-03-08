@@ -374,6 +374,7 @@ use work.desilog.all;
 		static bool isWritableReg(KVar reg){
 			if(reg.storage != KVar.EStor.kreg) return false;
 			if(reg.Is.readOnly)  return false;
+			if(reg.writer && cast(KLink)reg.writer) return false;
 			return true;
 		}
 
@@ -434,6 +435,11 @@ use work.desilog.all;
 					if(i){
 						if(m.storage != KVar.EStor.kreg)break;
 						if(m.Is.readOnly)break;
+						if(m.writer && cast(KLink)m.writer){
+							// is written by a link, 
+							//don't make an extra signal
+							break; 
+						}
 					}
 					xline("	signal %s : ", varName(m, i==1));
 					if(sub.isArray){
@@ -1131,8 +1137,8 @@ use work.desilog.all;
 	void printVHDL(KTestBench tb){
 		xline("entity %s is  end entity;", tb.name);
 		xline("architecture testbench of %s is", tb.name);
-		xline("	signal done,error : std_ulogic := '0';");
-		xline("	signal reset_n,clk : std_ulogic := '0';");
+		xline("	signal success, done, error : std_ulogic := '0';");
+		xline("	signal reset_n, clk : std_ulogic := '0';");
 		xline("	signal counter : integer := 0;");
 		foreach(KVar v; tb.intf){
 			xline("	signal %s : %s;", v.name, typName(v.typ));
@@ -1150,7 +1156,7 @@ use work.desilog.all;
 			mIndent--;
 			xline("end process;");
 		}
-
+		xline("success <= done and (not error);");
 		xline("process begin");
 		xline("	clk <= '0';  wait for %d ps;", cfgTestBenchPeriod/2);
 		xline("	clk <= '1';  wait for %d ps;", cfgTestBenchPeriod/2);
@@ -1275,8 +1281,10 @@ private{
 			foreach(KCasterFunc f; pack){
 				printVHDLCasterFunc(f, false);
 			}
-
+			mIndent = 0;
 			xline("end;");
+			xnewline();
+			xnewline();
 		}
 
 
