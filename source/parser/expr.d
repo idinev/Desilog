@@ -131,7 +131,7 @@ private{
 					default:
 					{
 						KNode symbol = node.findNode(symName);
-						if(!symbol) err("Unknown symbol:", symName);
+						if(!symbol) err("Unknown symbol: ", symName);
 						if(auto typ = cast(KTyp)symbol) return BuiltinExpr_Typ(node, typ);
 
 						KExprVar v = new KExprVar();

@@ -247,7 +247,7 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 
 KArg reqReadArg(string symName, KNode node, bool isDest){
 	KNode symbol = node.findNode(symName);
-	if(!symbol) err("Unknown symbol:", symName);
+	if(!symbol) err("Unknown symbol: ", symName);
 
 	return ReadArg(symbol, node, isDest);
 }

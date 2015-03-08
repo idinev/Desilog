@@ -67,7 +67,7 @@ struct VEndPoint{
 VEndPoint reqReadEndPoint(KScope node, bool isDest){
 	string symName = reqIdent;
 	KNode symbol = node.findNode(symName);
-	if(!symbol)err("Unknown symbol:", symbol);
+	if(!symbol)err("Unknown symbol: ", symbol);
 
 	VEndPoint pt;
 

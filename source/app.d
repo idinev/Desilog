@@ -14,6 +14,9 @@ string cfgInDir;
 string cfgChgDir;
 string cfgTop;
 int    cfgTestBenchPeriod = 10; // how many picoseconds per period
+bool   cfgDevErr = false;
+bool   cfgDevAst = false;
+
 private{
 	int printHelp(){
 		writeln(
@@ -28,6 +31,8 @@ Example:
 		-idir <dirname>		Folder containing sourcecode .du and .dpack files. Default is current-folder.
 		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen"  .
 		-tb.period <num>	Clock-period in picoseconds of the generated test-benches. Default is 10ps.
+		-dev.err			Print stacktrace on compile-error, useful for debugging. 
+		-dev.ast			Dump AST, useful for debugging
 `);
 		return -1;
 	}
@@ -91,7 +96,8 @@ int main(string[] cmdArgs) {
 
 		OnAddProjUnit(proj, cfgTop);
 		writeln("Success");
-		//proj.dump(0);
+
+		if(cfgDevAst) proj.dump(0);
 
 		chdir(startDir);
 		if(!exists(cfgOutDir)) mkdir(cfgOutDir);
@@ -101,8 +107,9 @@ int main(string[] cmdArgs) {
 		chdir(startDir);
 	} catch (Exception e) {
 		writeln("Failed: ", e.msg);
-		if(1){
-			writeln("-----------------");
+		if(cfgDevErr){
+			writeln("\n\n\n\n");
+			writeln("------[ stacktrace ]-----------");
 			writeln(e);
 		}
 		return -1;

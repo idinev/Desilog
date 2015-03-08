@@ -70,8 +70,8 @@ class KTestBench : KNode{
 
 void ProcKW_Testbench(DPFile file){
 	KTestBench tb = new KTestBench;
+	tb.intf = reqNode!KEntity(file);
 	tb.readName(file);
-	req('<'); tb.intf = reqNode!KEntity(file); req('>');
 
 	// copy ports, reverse direction. Convert to "wire" for now
 	foreach(port; tb.intf.kids){

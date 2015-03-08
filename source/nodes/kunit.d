@@ -205,7 +205,7 @@ void ProcKW_Unit(DPFile file){
 	string intfName = reqIdent;
 
 	unit.entity = file.findNodeOfKind!KEntity(intfName);
-	if(!unit.entity)err("Cannot find interface for this unit");
+	if(!unit.entity)err("Cannot find interface for this unit: ",intfName);
 	if(unit.entity.unitImpl) err("Implementation of this interface already exists");
 	unit.entity.unitImpl = unit; // pair-up
 	file.addKid(unit);

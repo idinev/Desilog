@@ -56,7 +56,7 @@ KTyp reqTyp(KNode node){
 	KTyp t = getTyp(name, node);
 	if(t)return t;
 
-	err("Cannot find type");
+	err("Cannot find type ", name);
 	return null;
 }
 
