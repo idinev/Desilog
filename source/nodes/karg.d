@@ -79,6 +79,10 @@ class KArgFuncCall : KArg{
 	KExpr[] args;
 }
 
+class KArgClockDat : KArgObjDat{
+
+}
+
 
 private{
 
@@ -145,6 +149,20 @@ private{
 		return null;
 	}
 
+	KArg ReadArg_Clock(KClock clk, KNode node, KScope proc, bool isDest){
+		AHanAccess acc = ReadArg_AHanAccess(clk, node, isDest);
+		assert(!isDest); // above func should have thrown exception
+		if(acc.var){
+			auto cdat = new KArgClockDat;
+			cdat.setup(acc);
+			return cdat;
+		}else{
+			errInternal;
+		}
+
+		return null;
+	}
+
 	KArg ReadArg_RAM(KRAM ram, KNode node, KScope proc, bool isDest){
 		AHanAccess acc = ReadArg_AHanAccess(ram, node, isDest);
 
@@ -205,6 +223,8 @@ KArg ReadArg(KNode symbol, KNode node, bool isDest){
 		result = ReadArg_RAM(ram, node, proc, isDest);
 	}else if(KFunc func = cast(KFunc)symbol){
 		result = ReadArg_Func(func, node, proc, isDest);
+	}else if(KClock clk = cast(KClock)symbol){
+		result = ReadArg_Clock(clk, node, proc, isDest);
 	}else{
 		err("Unhandled symbol as statement");
 	}

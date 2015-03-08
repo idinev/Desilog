@@ -137,7 +137,7 @@ class KClock : KHandle{
 	this(){
 		KTyp bit = getCustomSizedVec(1);
 		addProp("clk", 	  bit, true);
-		addProp("active", bit, true);
+		addProp("reset_n",bit, true);
 	}
 }
 

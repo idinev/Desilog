@@ -2,6 +2,7 @@ module app;
 import std.exception;
 import std.file;
 import std.stdio;
+import std.conv;
 import common; 
 
 // Example cmdline:
@@ -12,7 +13,7 @@ string cfgOutDir = "autogen";
 string cfgInDir;
 string cfgChgDir;
 string cfgTop;
-
+int    cfgTestBenchPeriod = 10; // how many picoseconds per period
 private{
 	int printHelp(){
 		writeln(
@@ -26,6 +27,7 @@ Example:
 		-cd	 <dirname>		Change to specified folder at beginning.
 		-idir <dirname>		Folder containing sourcecode .du and .dpack files. Default is current-folder.
 		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen"  .
+		-tb.period <num>	Clock-period in picoseconds of the generated test-benches. Default is 10ps.
 `);
 		return -1;
 	}
@@ -47,6 +49,10 @@ Example:
 					break;
 				case "-top":
 					cfgTop = cmdArgs[aidx++];
+					break;
+				case "-tb.period":
+					string strPS = cmdArgs[aidx++];
+					cfgTestBenchPeriod = to!int(strPS);
 					break;
 				default:
 					stderr.writefln("Error: unknown cmd arg: %s", arg);

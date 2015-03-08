@@ -6,6 +6,7 @@ import std.algorithm;
 import std.string;
 import std.conv;
 import std.bitmanip;
+import app;
 
 private{
 	enum strDesilog_SrcOutReg 	= "dg_o_";
@@ -286,6 +287,10 @@ use work.desilog.all;
 			}
 			
 			xput("; -- wire pre-zero-init");
+		}else if(var.storage == KVar.EStor.kvar){
+			xline("%s := ", varName(var,true));
+			PrintTypeZeroInitter(var.typ);
+			xput("; -- local-var zero-init");
 		}
 	}
 
@@ -584,6 +589,9 @@ use work.desilog.all;
 		}
 		xput("\n	begin");
 		PrintPreloadLatchesAndWires(proc.parent, proc);
+		foreach(KVar localVar; proc){
+			PrintPreloadSignal(localVar, proc);
+		}
 
 		if(KProcess clockedProc = cast(KProcess)proc){
 			PreloadRAMs(clockedProc);
@@ -612,6 +620,10 @@ use work.desilog.all;
 			if(!v.Is.funcArg) xput("\n\t\tvariable %s: %s;", v.name, typName(v.typ));
 		}
 		xput("\n	begin");
+		foreach(KVar v; func){
+			if(!v.Is.funcArg) PrintPreloadSignal(v,func);
+		}
+
 		foreach(s; func.code){
 			printVHDL(s);
 		}
@@ -1016,12 +1028,18 @@ use work.desilog.all;
 		}
 		xput(")");
 	}
+	void printVHDL(KArgClockDat arg){
+		xput(varName(arg.var, arg.isDest));
+		
+		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
+	}
 
 	void printVHDL(KArg arg) {
 			 if(auto a = cast(KArgVar)arg) 		printVHDL(a);
 		else if(auto a = cast(KArgSubuPort)arg) printVHDL(a);
 		else if(auto a = cast(KArgRAMDat)arg)	printVHDL(a);
 		else if(auto a = cast(KArgFuncCall)arg)	printVHDL(a);
+		else if(auto a = cast(KArgClockDat)arg)	printVHDL(a);
 		else notImplemented;
 	}
 
@@ -1118,8 +1136,8 @@ use work.desilog.all;
 		}
 
 		xline("process begin");
-		xline("	clk <= '0';  wait for 1 ps;");
-		xline("	clk <= '1';  wait for 1 ps;");
+		xline("	clk <= '0';  wait for %d ps;", cfgTestBenchPeriod/2);
+		xline("	clk <= '1';  wait for %d ps;", cfgTestBenchPeriod/2);
 		xline("end process;");
 		
 		xline("process begin");
