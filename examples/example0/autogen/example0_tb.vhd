@@ -25,8 +25,8 @@ begin
 		doAdd <= '1';
 	end process;
 	process begin
-		clk <= '0';  wait for 1 ps;
-		clk <= '1';  wait for 1 ps;
+		clk <= '0';  wait for 5 ps;
+		clk <= '1';  wait for 5 ps;
 	end process;
 	process begin
 		wait until rising_edge(clk);

@@ -8,3 +8,7 @@
 /.dub/*
 /dub.*
 /.settings/*
+/examples/proj_altera/*/
+/examples/proj_altera/example0_nativelink_simulation.rpt
+/examples/proj_altera/example0.qws
+/examples/proj_altera/example0_description.txt

@@ -1,0 +1,214 @@
+/*
+	Example1 for Desilog
+	
+	Compile with 
+		desilog -top example1
+			or
+		desilog -top example1 -idir examples/example1 -odir examples/out/example1
+	
+	Demonstrates various simple constructs, no external imports.
+	
+*/
+
+
+
+//----------[ MySyncAdder ]----------------------------------[
+entity MySyncAdder{
+	clock addClk;	
+	
+	in wire{ 
+		bit isAdd; 
+		bit useOldZ_asX; 
+		bit useOldZ_asY;
+	}
+	
+	in latch u8 xx,yy;		// u8 is 8-bit unsigned. Signed numbers and arithmetic are supported only through built-in functions or external functions.
+	out reg<addClk> u8  zz;	
+}
+
+
+unit MySyncAdder{
+
+	on_clock<addClk> MyMainProcess{
+		var u8 srcX, srcY;
+		
+		if useOldZ_asX{ // you can write that as "if(useOldZ_asX){" , too
+			srcX = zz;
+		}else{
+			srcX = yy;
+		}
+		
+		srcY ?= useOldZ_asY ? zz : xx; // same behaviour as above, simpler syntax
+		
+		if isAdd{
+			zz = srcX + srcY;
+		}else{
+			zz = srcX - srcY;
+		}
+	}
+	
+}
+//-----------------------------------------------------------/
+
+
+
+//----------[ MySyncLOP ]----------------------------------[
+define LOP_AND	= 0;	// can fit in 1 bits or more
+define LOP_OR	= 0x1;    // means exactly 4 bits
+define LOP_XOR	= '0010'; // means exactly 4 bits
+define LOP_NOR	= 3@4;    // means exactly 4 bits
+
+
+entity MySyncLOP{
+	clock lopClk;
+	
+	in reg<lopClk>{
+		u4 oper;
+		u8 rx = 5, ry = '100';
+		vec[3] xorMaskIdx = 0;
+	}
+	
+	out reg<lopClk> u8 result = 0x99;
+	out latch u8 lastAND;
+}
+
+
+
+unit MySyncLOP{
+
+	reg<lopClk> u32 ClockCounter = 0x100;
+
+	on_clock<lopClk> calcResult{
+		var vec[3] xorRemap;
+		
+		/* A mux with 3-bit selector, and ordered array of values. 
+		   The last value is used for unspecified indices
+		 */
+		xorRemap = mux[xorMaskIdx]{
+			3,2,1,0,2,1
+		}; // ';' required here. Almost all other uses of '}' don't need ';'
+		
+		var u8 xorMask = mux(xorRemap){	// a mux with 3-bit selector
+			0:		 0xFF;
+			1:		 0x11;
+			2,4,7:	 0x33; // covers cases 2,4 and 7
+			default: 0x00;
+		};
+		
+		var u8 tmpRes;
+		
+		switch(oper){
+			case LOP_AND:
+				tmpRes = rx & ry;
+				lastAND = tmpRes;
+			case LOP_OR:
+				tmpRes = rx | ry;
+			case LOP_XOR:
+				tmpRes = rx ^ ry;
+			case LOP_NOR:
+				tmpRes = !(rx | ry);
+		}
+		
+		result = tmpRes ^ xorMask;
+		
+		ClockCounter++;
+	}
+}
+//---------------------------------------------------------/
+
+
+//----------[ Example1 ]----------------------------------[
+entity Example1{
+	clock clk;
+	
+	in wire u8 in_ry;
+	out wire u8 outa,outb; 
+}
+
+unit Example1{
+	sub_unit<clk> MySyncAdder adder;
+	sub_unit MySyncLOP lop;
+	
+	link{
+		lop.lopClk = clk;
+	}
+	
+	
+	combi{
+		
+		outa = adder.zz;
+		outb = lop.result + lop.lastAND;
+	}
+	
+	enum MyFSM{
+		init,
+		adding,
+		add_oldx,
+		add_oldy,
+		lopping
+	}
+	
+	reg<clk> MyFSM fsm = MyFSM.init;
+	reg<clk> u8 count;
+	
+	func u4 ChooseLOPOperation(u8 counter){
+		var u4 result = mux[counter[0,2]]{
+			LOP_OR,
+			LOP_XOR,
+			LOP_NOR,
+			LOP_AND
+		};
+		
+		return result;
+	}
+	
+	on_clock<clk> main{
+		var bit resetCount;
+		
+		switch(fsm){
+			case MyFSM.init:
+				fsm = MyFSM.adding;
+				resetCount = 1;
+				adder.yy = in_ry;
+			case MyFSM.adding:
+				adder.isAdd = 1;
+				adder.xx = count;
+				if(count==5){ 
+					fsm = MyFSM.add_oldx;
+					resetCount = 1;
+				}
+			case MyFSM.add_oldx:
+				adder.useOldZ_asX = 1;
+				if count == 3{
+					fsm = MyFSM.add_oldy;
+					resetCount = 1;
+				}
+			case MyFSM.add_oldy:
+				adder.useOldZ_asY = 1;
+				adder.xx = count;
+				fsm = MyFSM.lopping;
+				resetCount = 1;
+			case MyFSM.lopping:
+				lop.oper = ChooseLOPOperation(count);
+				lop.rx++;
+				lop.xorMaskIdx--;
+		}
+		
+		
+		if(!clk.reset_n){
+			lop.oper = LOP_XOR; // explicitly reset a reg
+		}
+		
+		count ?= resetCount ? 0 : count + 1;
+	}
+	
+	
+}
+//--------------------------------------------------------/
+
+testbench example1_tb<Example1>{
+	// no validation, for now
+	force{
+		in_ry = 0;
+	}
+}
