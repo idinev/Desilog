@@ -76,13 +76,8 @@ void ProcKW_Testbench(DPFile file){
 	// copy ports, reverse direction. Convert to "wire" for now
 	foreach(port; tb.intf.kids){
 		if(auto v = cast(KVar)port){
-			KVar p = new KVar;
-			p.name = v.name;
-			p.typ = v.typ;
-			p.Is.readOnly = v.Is.isOut;
-			//p.storage = v.storage; // FIXME
-			p.storage = KVar.EStor.kwire;
-			p.clock = v.clock;
+			KVar p = copyVarFromSubu(v);
+			p.storage = KVar.EStor.kwire; // FIXME
 			tb.addKid(p);
 		}
 	}
@@ -261,6 +256,12 @@ void OnAddProjUnit(DProj proj, string uri){
 			curTokenizer.startFrom(var.reset);
 			var.resetExpr = ReadExpr(unit);
 		}
+
+		foreach(KLink link; unit){
+			curTokenizer.startFrom(link.curlyStart);
+			link.code = ReadLinksList(link);
+		}
+
 		// elaborate processes/combi/functions
 		foreach(KScope proc; unit){
 			if(cast(KLink)proc)continue; // ignore links
@@ -268,10 +269,7 @@ void OnAddProjUnit(DProj proj, string uri){
 
 			proc.code = ReadStatementList(proc);
 		}
-		foreach(KLink link; unit){
-			curTokenizer.startFrom(link.curlyStart);
-			link.code = ReadLinksList(link);
-		}
+
 	}
 
 	g_curNodeWithDefs = file;

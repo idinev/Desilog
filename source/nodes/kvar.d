@@ -40,6 +40,18 @@ KVar reqFindVar(KNode node, string name){
 	return v;
 }
 
+KVar copyVarFromSubu(KVar src){
+	KVar p = new KVar;
+	p.name = src.name;
+	p.typ = src.typ;
+	p.storage = src.storage;
+	p.clock = src.clock;
+	p.resetExpr = src.resetExpr;
+	p.Is.readOnly = src.Is.isOut;
+
+	return p;
+}
+
 
 struct VEndPoint{
 	KSubUnit sub;

@@ -374,6 +374,13 @@ KStmt[] ReadStatementList(KScope node){
 	return code;
 }
 
+void RenameSubuInputPortClock(KSubUnit sub, string oldClk, string newClk){
+	foreach(KVar v; sub){
+		if(!v.Is.readOnly && v.clock && v.clock == oldClk){
+			v.clock = newClk;
+		}
+	}
+}
 
 KStmt[] ReadLinksList(KScope node){
 	KStmt[] code;
@@ -385,6 +392,10 @@ KStmt[] ReadLinksList(KScope node){
 		req('=');
 		s.esrc = reqReadEndPoint(node, false);
 		if(s.edst.finalTyp != s.esrc.finalTyp)	err("Link endpoints are incompatible");
+
+		if(s.edst.clk && s.edst.sub){
+			RenameSubuInputPortClock(s.edst.sub, s.edst.clk.name, s.esrc.clk.name);
+		}
 
 		req(';');
 

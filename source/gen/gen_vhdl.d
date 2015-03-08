@@ -119,7 +119,7 @@ use work.desilog.all;
 		}
 
 		string prefixD = GetSpecialVarPrefix(var, isDest);
-		string result = handPrefix ~ prefixD ~ var.name;
+		string result = prefixD ~ handPrefix ~ var.name;
 		return result;
 	}
 
@@ -257,10 +257,6 @@ use work.desilog.all;
 
 
 	void PrintPreloadSignal(KVar var, KScope scop){
-		string handPrefix = "";
-		if(var.handle){
-			handPrefix = var.handle.name ~ "_";
-		}
 		if(var.storage == KVar.EStor.kreg){
 			xline("%s <= %s; -- reg preload", varName(var,true), varName(var,false));
 		}else if(var.storage == KVar.EStor.klatch){
@@ -368,24 +364,35 @@ use work.desilog.all;
 		xline("----[ sync clock pump for %s ]------", clk.name);
 		xline("process begin"); mIndent++;
 		xline("wait until rising_edge(%s_clk);", clk.name);
+
 		bool anyReset = false;
-		foreach(KVar reg; unit){ // find non-input regs
-			if(reg.storage != KVar.EStor.kreg) continue;
-			if(reg.Is.readOnly) continue;
-			if(reg.resetExpr) anyReset = true;
-			if(!reg.writer)continue;
-			xline("%s <= %s;", varName(reg, false), varName(reg, true));
+		KNode[] nodesWithVars = [unit];
+		foreach(KSubUnit sub; unit) nodesWithVars ~= sub;
+
+		static bool isWritableReg(KVar reg){
+			if(reg.storage != KVar.EStor.kreg) return false;
+			if(reg.Is.readOnly)  return false;
+			return true;
+		}
+
+		foreach(KNode n; nodesWithVars){
+			foreach(KVar reg; n){ // find non-input regs
+				if(!isWritableReg(reg))continue;
+				if(reg.resetExpr) anyReset = true;
+				xline("%s <= %s;", varName(reg, false), varName(reg, true));
+			}
 		}
 
 		if(anyReset){
 			xline("if %s_reset_n = '0' then", clk.name);
-			foreach(KVar reg; unit){ // find non-input regs with init
-				if(reg.storage != KVar.EStor.kreg) continue;
-				if(reg.Is.readOnly) continue;
-				if(!reg.resetExpr)continue;
-				xline("	%s <= ", varName(reg, false));
-				PrintMatchedSrc(reg.typ, reg.resetExpr);
-				xput(";");
+			foreach(KNode n; nodesWithVars){
+				foreach(KVar reg; n){ // find non-input regs with init
+					if(!isWritableReg(reg))continue;
+					if(!reg.resetExpr)continue;
+					xline("	%s <= ", varName(reg, false));
+					PrintMatchedSrc(reg.typ, reg.resetExpr);
+					xput(";");
+				}
 			}
 			xline("end if;");
 		}
@@ -424,9 +431,9 @@ use work.desilog.all;
 				for(int i=0;i<2;i++){
 					if(i){
 						if(m.storage != KVar.EStor.kreg)break;
-						if(m.Is.isIn)break;
+						if(m.Is.readOnly)break;
 					}
-					xline("	signal %s%s_%s : ",  i ? "reg_" : "", sub.name, m.name);
+					xline("	signal %s : ", varName(m, i==1));
 					if(sub.isArray){
 						//xput("typ_%s_%s;", v.name, m.name);
 					}else{
@@ -436,7 +443,7 @@ use work.desilog.all;
 			}
 			foreach(KClock subClk; sub){
 				// print local signals for the clocks of this subunit
-				if(sub.srcClk == subClk)continue;
+				if(sub.dstClk == subClk)continue;
 				xline("\tsignal %s_%s_clk, %s_%s_reset_n : std_ulogic;", sub.name, subClk.name, sub.name, subClk.name);
 			}
 		}
@@ -1029,7 +1036,14 @@ use work.desilog.all;
 		xput(")");
 	}
 	void printVHDL(KArgClockDat arg){
-		xput(varName(arg.var, arg.isDest));
+		string vname = varName(arg.var, arg.isDest);
+		if(arg.var.name=="reset"){
+			// we had represented the reset as active-high,
+			// when it's active-low and with name "reset_n"
+			xput("(not %s_n)",vname);
+		}else{
+			xput(vname);
+		}
 		
 		vhdlPrintVarExtra(arg.var, arg.offsets, arg.isDest);
 	}

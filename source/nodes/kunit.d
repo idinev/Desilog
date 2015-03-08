@@ -90,8 +90,8 @@ void ProcKW_RAM(KUnit unit){
 
 class KSubUnit : KHandle{
 	KEntity intf;
-	KClock srcClk;
-	KClock dstClk;
+	KClock srcClk; // belongs to parent
+	KClock dstClk; // belongs to the sub-unit, is input
 }
 class KLink : KScope{
 }
@@ -114,9 +114,10 @@ void ProcKW_SubUnit(KUnit unit){
 
 
 	foreach(port; sub.intf.kids){
-		if(cast(KVar)port){
-			KVar v = cast(KVar)port;
-			sub.addProp(v.name, v.typ, v.Is.isOut);
+		if(auto v = cast(KVar)port){
+			KVar p = copyVarFromSubu(v);
+			p.handle = sub;
+			sub.addKid(p);
 		}else if(cast(KClock)port){
 			KClock c = new KClock;
 			c.name = port.name;
@@ -133,6 +134,8 @@ void ProcKW_SubUnit(KUnit unit){
 			if(!sub.dstClk)	sub.dstClk = sclk;
 		}
 		if(numSubClocks==0) err("Sub-unit interface doesn't have any clocks");
+
+		RenameSubuInputPortClock(sub, sub.dstClk.name, sub.srcClk.name);
 	}
 	
 	req(';');
