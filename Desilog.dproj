@@ -4,7 +4,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{B325B502-AA47-4BDF-9431-02B3AD519DEC}</ProjectGuid>
-    <Compiler>GDC</Compiler>
+    <Compiler>DMD2</Compiler>
     <PreferOneStepBuild>true</PreferOneStepBuild>
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
@@ -17,9 +17,9 @@
     <OutputName>Desilog</OutputName>
     <Target>Executable</Target>
     <DebugLevel>0</DebugLevel>
-    <ConsolePause>false</ConsolePause>
     <OutputPath>bin</OutputPath>
-    <Commandlineparameters>-top example0 -cd /home/ili/dev/Desilog/examples/example0</Commandlineparameters>
+    <Commandlineparameters>-dev.err -top tute3 -cd /home/ili/dev/Desilog/tutorial/tute3</Commandlineparameters>
+    <Externalconsole>true</Externalconsole>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -60,6 +60,7 @@
     <Compile Include="source\nodes\karg.d" />
     <Compile Include="source\nodes\kunit.d" />
     <Compile Include="source\nodes\kfunc.d" />
+    <Compile Include="source\gen\run_vsim.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\gen\" />

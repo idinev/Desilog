@@ -195,7 +195,7 @@ unit Example1{
 		}
 		
 		
-		if(!clk.reset_n){
+		if(clk.reset){
 			lop.oper = LOP_XOR; // explicitly reset a reg
 		}
 		

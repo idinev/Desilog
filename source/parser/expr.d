@@ -140,7 +140,6 @@ private{
 						return v;
 					}
 				}
-				break;
 			}
 			case TokTyp.num:
 			{

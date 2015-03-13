@@ -313,11 +313,11 @@ use work.desilog.all;
 		foreach(KRAM ram; unit){
 			for(int idx=0; idx<2; idx++){
 				if(ram.writer[idx] != proc)continue;
-				string postfix = "";
-				if(ram.dual) postfix = idx ? "1" : "0";
-				xline("%s_write%s <= '0';",ram.name, postfix);
-				xline("%s_addr%s_wire <= (others => '0');",ram.name, postfix);
-				xline("%s_wdata%s <= ",ram.name, postfix);
+				int port=0;
+				if(ram.dual && idx) port = 1;
+				xline("%s_write%d <= '0';",ram.name, port);
+				xline("%s_addr%d_wire <= (others => '0');",ram.name, port);
+				xline("%s_wdata%d <= ",ram.name, port);
 				PrintTypeZeroInitter(ram.typ);
 				xput(";");
 			}
@@ -463,19 +463,19 @@ use work.desilog.all;
 			xline("signal %s : %s_arrtype := (others => (others => '1'));", h.name, h.name);
 
 
-			void WriteRAMSignals(KRAM h, string prefix){
-				xline("signal %s_addr_wire%s: %s;", h.name, prefix, typName(h.addrTyp));
-				xline("signal %s_addr_reg%s : %s;", h.name, prefix, typName(h.addrTyp));
-				xline("signal %s_data%s: %s;", h.name, prefix, typName(h.typ));
-				xline("signal %s_wdata%s: %s;", h.name, prefix, typName(h.typ));
-				xline("signal %s_write%s: std_ulogic;", h.name, prefix);
+			void WriteRAMSignals(KRAM h, int port){
+				xline("signal %s_addr%d_wire: %s;", h.name, port, typName(h.addrTyp));
+				xline("signal %s_addr%d_reg : %s;", h.name, port, typName(h.addrTyp));
+				xline("signal %s_data%d: %s;", h.name, port, typName(h.typ));
+				xline("signal %s_wdata%d: %s;", h.name, port, typName(h.typ));
+				xline("signal %s_write%d: std_ulogic;", h.name, port);
 			}
 
 			if(h.dual){
-				WriteRAMSignals(h, "0");
-				WriteRAMSignals(h, "1");
+				WriteRAMSignals(h, 0);
+				WriteRAMSignals(h, 1);
 			}else{
-				WriteRAMSignals(h, "");
+				WriteRAMSignals(h, 0);
 			}
 		}
 
@@ -561,20 +561,36 @@ use work.desilog.all;
 		}
 
 		foreach(KRAM h; unit){
-			for(int idx=0; idx < 2; idx++){
-				string postfix="";
-				if(h.dual) postfix = idx ? "1" : "0";
-				else if(idx)break;
-
-				xline("--- clock pump for RAM %s port %d", h.name, idx);
-
-				xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[idx].name, h.clk[idx].name);
-				xline("\tif %s_write%s='1' then", h.name, postfix);
-				xline("\t\t%s(to_integer(%s_addr%s_wire)) <= %s_wdata%s;", h.name, h.name, postfix, h.name, postfix);
-				xline("\tend if;");
-				xline("\t%s_addr%s_reg <= %s_addr%s_wire;", h.name, postfix, h.name, postfix);
+			if(h.dual && h.clk[0] == h.clk[1]){
+				xline("--- clock pump for RAM %s port", h.name);
+				
+				xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[0].name, h.clk[0].name);
+				for(int port=0; port < 2; port++){
+					xline("\tif %s_write%d='1' then", h.name, port);
+					xline("\t\t%s(to_integer(%s_addr%d_wire)) <= %s_wdata%s;", h.name, h.name, port, h.name, port);
+					xline("\tend if;");
+				}
+				for(int port=0; port < 2; port++){
+					xline("\t%s_addr%d_reg <= %s_addr%d_wire;", h.name, port, h.name, port);
+				}
 				xline("end if; end process;");
-				xline("%s_data%s <= %s(to_integer(%s_addr%s_reg));", h.name, postfix, h.name, h.name, postfix);
+				for(int port=0; port < 2; port++){
+					xline("%s_data%d <= %s(to_integer(%s_addr%d_reg));", h.name, port, h.name, h.name, port);
+				}
+			}else{
+				for(int port=0; port < 2; port++){
+					if(port && !h.dual)break;
+
+					xline("--- clock pump for RAM %s port %d", h.name, port);
+
+					xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[port].name, h.clk[port].name);
+					xline("\tif %s_write%d='1' then", h.name, port);
+					xline("\t\t%s(to_integer(%s_addr%d_wire)) <= %s_wdata%s;", h.name, h.name, port, h.name, port);
+					xline("\tend if;");
+					xline("\t%s_addr%d_reg <= %s_addr%d_wire;", h.name, port, h.name, port);
+					xline("end if; end process;");
+					xline("%s_data%d <= %s(to_integer(%s_addr%d_reg));", h.name, port, h.name, h.name, port);
+				}
 			}
 		}
 
@@ -903,17 +919,20 @@ use work.desilog.all;
 
 	void printVHDL(KStmtObjMethod s){
 		if(auto a = cast(KArgRAMMeth)s.dst){
+			int port = 0;
 			switch(a.method.name){
 				case "setAddr0":
 				case "setAddr1":
-					xline("%s_addr_wire <= ", a.ram.name);
+					if(a.method.name == "setAddr1") port = 1;
+					xline("%s_addr%d_wire <= ", a.ram.name, port);
 					PrintMatchedSrc(a.ram.addrTyp, a.methodArgs[0]);
 					xput(";");
 					break;
 				case "write0":
 				case "write1":
-					xline("%s_write <= '1';", a.ram.name);
-					xline("%s_wdata <= ", a.ram.name);
+					if(a.method.name == "write1") port = 1;
+					xline("%s_write%d <= '1';", a.ram.name, port);
+					xline("%s_wdata%d <= ", a.ram.name, port);
 					PrintMatchedSrc(a.ram.typ, a.methodArgs[0]);
 					xput(";");
 					break;

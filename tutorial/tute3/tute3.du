@@ -1,0 +1,30 @@
+
+
+entity tute3{
+	clock clk;
+	
+	in reg<clk>{
+		bit iwrite0;
+		u8  iwdata0;
+		u8  iaddr0, iaddr1;
+		
+	}
+	
+	
+	out wire u8 r0;
+	out wire u8 r1;
+}
+
+unit tute3{
+	RAM dual<clk,clk> u8 mem[256];
+	
+	
+	on_clock<clk> main{
+		mem.setAddr0(iaddr0);
+		mem.write0(iwdata0);
+		mem.setAddr1(iaddr1);
+		
+		r0 = mem.data0;
+		r1 = mem.data1;
+	}
+}

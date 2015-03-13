@@ -214,11 +214,14 @@ architecture rtl of Example1 is
 		signal adder_xx : u8;
 		signal adder_yy : u8;
 		signal adder_zz : u8;
-		signal adder_addClk_clk, adder_addClk_reset_n : std_ulogic;
 		signal lop_oper : u4;
+		signal dg_c_lop_oper : u4;
 		signal lop_rx : u8;
+		signal dg_c_lop_rx : u8;
 		signal lop_ry : u8;
+		signal dg_c_lop_ry : u8;
 		signal lop_xorMaskIdx : unsigned(2 downto 0);
+		signal dg_c_lop_xorMaskIdx : unsigned(2 downto 0);
 		signal lop_result : u8;
 		signal lop_lastAND : u8;
 		signal lop_lopClk_clk, lop_lopClk_reset_n : std_ulogic;
@@ -254,11 +257,11 @@ begin
 		adder_isAdd <= '0'; -- wire pre-zero-init
 		adder_useOldZ_asX <= '0'; -- wire pre-zero-init
 		adder_useOldZ_asY <= '0'; -- wire pre-zero-init
-		adder_xx <= X"00"; -- wire pre-zero-init
-		adder_yy <= X"00"; -- wire pre-zero-init
-		lop_oper <= X"0"; -- wire pre-zero-init
-		lop_rx <= X"00"; -- wire pre-zero-init
-		lop_xorMaskIdx <= "000"; -- wire pre-zero-init
+		adder_xx <= adder_xx; -- latch preload
+		adder_yy <= adder_yy; -- latch preload
+		dg_c_lop_oper <= lop_oper; -- reg preload
+		dg_c_lop_rx <= lop_rx; -- reg preload
+		dg_c_lop_xorMaskIdx <= lop_xorMaskIdx; -- reg preload
 		resetCount := '0'; -- local-var zero-init
 
 		case fsm is
@@ -285,13 +288,13 @@ begin
 				dg_c_fsm <= MyFSM_lopping;
 				resetCount := '1';
 			when MyFSM_lopping =>	
-				lop_oper <= ChooseLOPOperation(count);
-				lop_rx <= lop_rx + X"01";
-				lop_xorMaskIdx <= lop_xorMaskIdx - "001";
+				dg_c_lop_oper <= ChooseLOPOperation(count);
+				dg_c_lop_rx <= lop_rx + X"01";
+				dg_c_lop_xorMaskIdx <= lop_xorMaskIdx - "001";
 			when others => null;
 		end case;
-		if ( (not clk_reset_n) = '1') then
-			lop_oper <= X"2";
+		if ((not clk_reset_n) = '1') then
+			dg_c_lop_oper <= X"2";
 		end if;
 		if (resetCount = '1') then
 			dg_c_count <= X"00";
@@ -331,6 +334,10 @@ begin
 		wait until rising_edge(clk_clk);
 		fsm <= dg_c_fsm;
 		count <= dg_c_count;
+		lop_oper <= dg_c_lop_oper;
+		lop_rx <= dg_c_lop_rx;
+		lop_ry <= dg_c_lop_ry;
+		lop_xorMaskIdx <= dg_c_lop_xorMaskIdx;
 		if clk_reset_n = '0' then
 			fsm <= MyFSM_init;
 		end if;

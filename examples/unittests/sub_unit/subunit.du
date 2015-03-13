@@ -1,0 +1,30 @@
+ 
+entity MyAdder{
+	clock clkAdd;
+	in reg<clkAdd> u8 x,y;
+	out reg<clkAdd> u8 zout;
+}
+
+unit MyAdder{
+	on_clock<clkAdd> main{
+		zout = x + y;
+	}
+}
+
+entity subunit{
+	clock clk;
+	out reg<clk> u8 oout;
+}
+
+unit subunit{
+	sub_unit MyAdder madd;
+	
+	link{ madd.clkAdd = clk;}
+	on_clock<clk> main{
+		madd.x = 1;
+		madd.y = 2;
+		
+		oout = madd.zout;
+	}
+}
+
