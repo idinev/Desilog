@@ -20,6 +20,8 @@ int    cfgTestBenchDuration = 300; // duration of the testbench
 string cfgTestBenchVSim;
 bool   cfgDevErr = false;
 bool   cfgDevAst = false;
+bool   cfgVhdlAltera = true;
+bool   cfgVhdlGeneric = false;
 
 private{
 	int printHelp(){
@@ -38,6 +40,7 @@ Example:
 		-tb.period <num>	Clock-period in picoseconds of the generated test-benches. Default is 10ps.
 		-dev.err			Print stacktrace on compile-error, useful for debugging. 
 		-dev.ast			Dump AST, useful for debugging
+		-vhdl.generic		Generate non-Altera abstraction vhdl files
 `);
 		return -1;
 	}
@@ -72,6 +75,10 @@ Example:
 					break;
 				case "-dev.ast":
 					cfgDevAst = true;
+					break;
+				case "-vhdl.generic":
+					cfgVhdlAltera = false;
+					cfgVhdlGeneric = true;
 					break;
 				default:
 					stderr.writefln("Error: unknown cmd arg: %s", arg);

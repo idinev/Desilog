@@ -7,6 +7,7 @@ import std.string;
 import std.conv;
 import std.bitmanip;
 import app;
+import gen.gen_files;
 
 private{
 	enum strDesilog_SrcOutReg 	= "dg_o_";
@@ -308,22 +309,6 @@ use work.desilog.all;
 		}
 	}
 
-	void PreloadRAMs(KProcess proc){
-		KUnit unit = cast(KUnit)proc.parent;
-		foreach(KRAM ram; unit){
-			for(int idx=0; idx<2; idx++){
-				if(ram.writer[idx] != proc)continue;
-				int port=0;
-				if(ram.dual && idx) port = 1;
-				xline("%s_write%d <= '0';",ram.name, port);
-				xline("%s_addr%d_wire <= (others => '0');",ram.name, port);
-				xline("%s_wdata%d <= ",ram.name, port);
-				PrintTypeZeroInitter(ram.typ);
-				xput(";");
-			}
-		}
-	}
-
 	void printVHDL(KEntity k){
 		xline("entity %s is port(", k.name);
 		int idx=0, num=0;
@@ -459,26 +444,18 @@ use work.desilog.all;
 		foreach(KRAM h; unit){
 			xline("---- internal signals for RAM %s -------------", h.name);
 			int actualSize = (1 << (logNextPow2(h.size)));
-			xline("type %s_arrtype is array (0 to %d) of %s;", h.name, actualSize - 1, typName(h.typ));
-			xline("signal %s : %s_arrtype := (others => (others => '1'));", h.name, h.name);
 
-
-			void WriteRAMSignals(KRAM h, int port){
-				xline("signal %s_addr%d_wire: %s;", h.name, port, typName(h.addrTyp));
-				xline("signal %s_addr%d_reg : %s;", h.name, port, typName(h.addrTyp));
-				xline("signal %s_data%d: %s;", h.name, port, typName(h.typ));
-				xline("signal %s_wdata%d: %s;", h.name, port, typName(h.typ));
-				xline("signal %s_write%d: std_ulogic;", h.name, port);
-			}
-
-			if(h.dual){
-				WriteRAMSignals(h, 0);
-				WriteRAMSignals(h, 1);
-			}else{
-				WriteRAMSignals(h, 0);
+			foreach(KVar v; h){
+				xline("signal %s_%s: %s", h.name, v.name, typName(v.typ));
+				if(!v.Is.readOnly && !v.writer){
+					xput(" := ");
+					PrintTypeZeroInitter(v.typ);
+					xput("; -- WARNING: unwritten RAM input");
+				}else{
+					xput(";");
+				}
 			}
 		}
-
 	}
 
 	void printVHDL(KUnit unit){
@@ -561,37 +538,34 @@ use work.desilog.all;
 		}
 
 		foreach(KRAM h; unit){
-			if(h.dual && h.clk[0] == h.clk[1]){
-				xline("--- clock pump for RAM %s port", h.name);
-				
-				xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[0].name, h.clk[0].name);
-				for(int port=0; port < 2; port++){
-					xline("\tif %s_write%d='1' then", h.name, port);
-					xline("\t\t%s(to_integer(%s_addr%d_wire)) <= %s_wdata%s;", h.name, h.name, port, h.name, port);
-					xline("\tend if;");
-				}
-				for(int port=0; port < 2; port++){
-					xline("\t%s_addr%d_reg <= %s_addr%d_wire;", h.name, port, h.name, port);
-				}
-				xline("end if; end process;");
-				for(int port=0; port < 2; port++){
-					xline("%s_data%d <= %s(to_integer(%s_addr%d_reg));", h.name, port, h.name, h.name, port);
-				}
-			}else{
-				for(int port=0; port < 2; port++){
-					if(port && !h.dual)break;
+			int logSize = logNextPow2(h.size);
+			xnewline;
+			xline("%s: entity work.%s generic map(DATA_BITS=> %d, ADDR_BITS=>%d)", 
+				h.name,
+				h.dual ? "dg_sys_ram_dual_sync" : "dg_sys_ram_mono_sync",
+				h.typ.calcTypSizeInBits(),
+				logSize);
 
-					xline("--- clock pump for RAM %s port %d", h.name, port);
 
-					xline("process(%s_clk) begin 	if(rising_edge(%s_clk)) then", h.clk[port].name, h.clk[port].name);
-					xline("\tif %s_write%d='1' then", h.name, port);
-					xline("\t\t%s(to_integer(%s_addr%d_wire)) <= %s_wdata%s;", h.name, h.name, port, h.name, port);
-					xline("\tend if;");
-					xline("\t%s_addr%d_reg <= %s_addr%d_wire;", h.name, port, h.name, port);
-					xline("end if; end process;");
-					xline("%s_data%d <= %s(to_integer(%s_addr%d_reg));", h.name, port, h.name, h.name, port);
+			xline("	port map("); //clk, mem_we, mem_idx, mem_data, mem_q");
+			final void PrintPortPortmap(KRAM h, int idx){
+				string n = h.name;
+				final void printTuple(KRAM h, int idx, string vname){
+					xput(", %s_%s%d", h.name, vname, idx);
 				}
+				xput("%s_clk", h.clk[idx].name);
+				printTuple(h, idx, "write");
+				printTuple(h, idx, "addr");
+				printTuple(h, idx, "wdata");
+				printTuple(h, idx, "data");
 			}
+
+			PrintPortPortmap(h, 0);
+			if(h.dual){
+				xput(", ");
+				PrintPortPortmap(h, 1);
+			}
+			xput(");\n");
 		}
 
 		xonceClear;
@@ -624,9 +598,6 @@ use work.desilog.all;
 			PrintPreloadSignal(localVar, proc);
 		}
 
-		if(KProcess clockedProc = cast(KProcess)proc){
-			PreloadRAMs(clockedProc);
-		}
 
 		foreach(s; proc.code){
 			printVHDL(s);
@@ -918,7 +889,7 @@ use work.desilog.all;
 
 
 	void printVHDL(KStmtObjMethod s){
-		if(auto a = cast(KArgRAMMeth)s.dst){
+		/*if(auto a = cast(KArgRAMMeth)s.dst){
 			int port = 0;
 			switch(a.method.name){
 				case "setAddr0":
@@ -938,7 +909,10 @@ use work.desilog.all;
 					break;
 				default: errInternal;
 			}
-		}else errInternal;
+		}
+		else
+		*/
+		errInternal;
 	}
 
 	void printVHDL(KStmt s){
@@ -1230,7 +1204,7 @@ use work.desilog.all;
 				xline("case counter is -- read+verify values");
 				mIndent++;
 				foreach(e; tb.vfy.entries){
-					assert(e.ins.length == tb.vfy.argOuts.length);
+					assert(e.outs.length == tb.vfy.argOuts.length);
 					xline("when %d => ", cidx);
 					int oidx = 0;
 					foreach(set; tb.vfy.argOuts){
@@ -1348,53 +1322,27 @@ private{
 		}
 	}
 
-	void GenDesilogFile(){
+	void GenDesilogFiles(){
 		CreateFile("desilog");
-		xput(
-`library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+		xput(gen_files_Desilog_vhd);
 
+		CreateFile("desilog_altera", cfgVhdlAltera);
+		xput(gen_files_Desilog_altera_vhd);
 
-package desilog is
-subtype  u8 is unsigned( 7 downto 0);
-subtype u16 is unsigned(15 downto 0);
-subtype u32 is unsigned(31 downto 0);
-subtype u64 is unsigned(63 downto 0);
-subtype  u2 is unsigned( 1 downto 0);
-subtype  u4 is unsigned( 3 downto 0);
-
-type string_ptr is access string;
---function str(a : unsigned) return string;
---function str(a : integer) return string; 
-function dg_boolToBit(bval : boolean) return std_ulogic;
-
-end package;
-
-
-package body desilog is
-	function dg_boolToBit(bval : boolean) return std_ulogic is	begin
-		if bval then
-			return '1';
-		else
-			return '0';
-		end if;
-	end function;
-end;
-
-`);
+		CreateFile("desilog_generic", cfgVhdlGeneric);
+		xput(gen_files_Desilog_generic_vhd);
 	}
 }
 
 
 
-void CreateFile(string uri){
+void CreateFile(string uri, bool required = true){
 	if(0){
 		vhdlOut = stdout; //vhdlOut = new File(
 	}else{
 		if(vhdlOut.isOpen) vhdlOut.close();
 		string fileName = uri ~ ".vhd";
-		vhdlAllGenFiles ~= fileName;
+		if(required) vhdlAllGenFiles ~= fileName;
 		vhdlOut.open(fileName,"w");
 		xput("-----------------------------------------------------------\n");
 		xput("--------- AUTOGENERATED FILE, DO NOT EDIT -----------------\n");
@@ -1404,8 +1352,8 @@ void CreateFile(string uri){
 
 void GenerateAllVHDL(DProj proj){
 
-	// create the supporting-package
-	GenDesilogFile();
+	// create the supporting-package files
+	GenDesilogFiles();
 
 	foreach(DPFile dfile; proj){
 		if(!dfile.isUnit) GenPackageFile(dfile);

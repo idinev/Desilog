@@ -20,11 +20,30 @@ unit tute3{
 	
 	
 	on_clock<clk> main{
-		mem.setAddr0(iaddr0);
-		mem.write0(iwdata0);
-		mem.setAddr1(iaddr1);
+		mem.addr0 = iaddr0;
+		mem.wdata0 = iwdata0;
+		mem.write0 = iwrite0;
+		mem.addr1 = iaddr1;
+		
+		//mem.write1 = 0;
+		//mem.wdata1 = 0;
 		
 		r0 = mem.data0;
 		r1 = mem.data1;
+	}
+}
+
+
+
+testbench tute3 tute3_tb{
+	verify(3,3)
+		in (iwrite0, iwdata0, iaddr0, iaddr1)
+		out (r0)
+	{
+		1, 0x55, 3, 0 : 0x55;
+		1, 0x66, 4, 0 : 0x66;
+		1, 0x77, 5, 0 : 0x77;
+		0, 0x88, 3, 0 : 0x55;
+		0, 0x99, 3, 0 : 0x55;
 	}
 }

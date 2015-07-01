@@ -70,10 +70,6 @@ class KArgRAMDat : KArgObjDat{
 	KRAM ram;
 	int portIdx;
 }
-class KArgRAMMeth : KArgObjMethod{
-	KRAM ram;
-	int portIdx;
-}
 class KArgFuncCall : KArg{
 	KFunc func;
 	KExpr[] args;
@@ -172,18 +168,6 @@ private{
 			rdat.ram = ram;
 			if(acc.var.name == "data1")  rdat.portIdx = 1;
 			return rdat;
-		}else if(acc.method){
-			KArgRAMMeth rmet = new KArgRAMMeth;
-			rmet.setup(acc);
-			rmet.ram = ram;
-			if(acc.method.name == "write1" || acc.method.name == "setAddr1") rmet.portIdx = 1;
-			KProcess process = cast(KProcess)proc;
-			if(!process) err("Control of RAM can happen only in clocked processes");
-			if(ram.clk[rmet.portIdx] != process.clk) err("RAM port controlled from a different clock than declared");
-			KScope prevWriter = ram.writer[rmet.portIdx];
-			if(prevWriter && prevWriter != proc)err("RAM port already controlled by another process: ", prevWriter.name);
-			ram.writer[rmet.portIdx] = proc;
-			return rmet;
 		}else{
 			errInternal;
 		}

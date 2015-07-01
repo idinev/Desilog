@@ -18,7 +18,7 @@
     <Target>Executable</Target>
     <DebugLevel>0</DebugLevel>
     <OutputPath>bin</OutputPath>
-    <Commandlineparameters>-dev.err -top tute3 -cd /home/ili/dev/Desilog/tutorial/tute3</Commandlineparameters>
+    <Commandlineparameters>-dev.err -top tute3 -cd /home/ili/dev/Desilog/tutorial/tute3 -tb.vsim tute3_tb</Commandlineparameters>
     <Externalconsole>true</Externalconsole>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -61,6 +61,7 @@
     <Compile Include="source\nodes\kunit.d" />
     <Compile Include="source\nodes\kfunc.d" />
     <Compile Include="source\gen\run_vsim.d" />
+    <Compile Include="source\gen\gen_files.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\gen\" />

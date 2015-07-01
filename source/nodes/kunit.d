@@ -44,18 +44,17 @@ class KRAM : KHandle{
 	void populateProps(){
 		int logSize = logNextPow2(size);
 		addrTyp = getCustomSizedVec(logSize);
-		KTyp[] setAddrArgs = [addrTyp];
-		KTyp[] writeArgs = [typ];
+		KTyp bit = getCustomSizedVec(1);
 
-		addProp("data0", typ, true);
-		addMethod("setAddr0", setAddrArgs, null);
-		addMethod("write0", writeArgs, null);
-
-		if(dual){
-			addProp("data1", typ, true);
-			addMethod("setAddr1", setAddrArgs, null);
-			addMethod("write1", writeArgs, null);
+		void addDualProp(bool dual, string name0, string name1, KTyp typ, bool readOnly){
+			addProp(name0, typ, readOnly);
+			if(dual) addProp(name1, typ, readOnly);
 		}
+
+		addDualProp(dual, "data0",  "data1",  typ, true);
+		addDualProp(dual, "addr0",  "addr1",  addrTyp, false);
+		addDualProp(dual, "wdata0", "wdata1", typ, false);
+		addDualProp(dual, "write0", "write1", bit, false);
 	}
 }
 
