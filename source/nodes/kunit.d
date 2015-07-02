@@ -36,10 +36,12 @@ class KRAM : KHandle{
 	KTyp typ;
 	KTyp addrTyp;
 	int size;
+	bool isRom;
 	bool dual;
 	bool regOut;
 	KClock[2] clk;
 	KScope[2] writer;
+	KExpr[] romData;
 
 	void populateProps(){
 		int logSize = logNextPow2(size);
@@ -53,13 +55,27 @@ class KRAM : KHandle{
 
 		addDualProp(dual, "data0",  "data1",  typ, true);
 		addDualProp(dual, "addr0",  "addr1",  addrTyp, false);
-		addDualProp(dual, "wdata0", "wdata1", typ, false);
-		addDualProp(dual, "write0", "write1", bit, false);
+		if(!isRom){
+			addDualProp(dual, "wdata0", "wdata1", typ, false);
+			addDualProp(dual, "write0", "write1", bit, false);
+		}
 	}
 }
 
-void ProcKW_RAM(KUnit unit){
+static void ReadROMContents(KRAM rom){
+	req('='); req('{');
+
+	int idx = 0;
+	for(;;idx++){
+		rom.romData ~= ReadExpr(rom);
+		if(peek('}'))break;
+		req(',');
+	}
+}
+
+void ProcKW_RAM(KUnit unit, bool isRom){
 	KRAM ram = new KRAM;
+	ram.isRom = isRom;
 
 	if(peek("dual")){
 		ram.dual = true;
@@ -76,12 +92,14 @@ void ProcKW_RAM(KUnit unit){
 	req('[');
 	ram.size = reqGetConstIntegerExpr(1,4*1024*1024);
 	req(']');
+	if(ram.isRom){
+		ReadROMContents(ram);
+	}
+
 	req(';');
 
 	ram.populateProps();
 }
-
-
 
 
 
@@ -221,7 +239,7 @@ void ProcKW_Unit(DPFile file){
 		
 		auto cases = [
 			"reg", "wire", "latch", "struct", "enum", "type", "define", "func", "on_clock", "combi", "link",
-			"RAM", "sub_unit"
+			"RAM", "ROM", "sub_unit"
 		];
 
 		if(peek('}'))break;
@@ -238,7 +256,8 @@ void ProcKW_Unit(DPFile file){
 			case "type":		ProcKW_Type(unit); break;
 			case "define":		ProcKW_Define(unit); break;
 			case "func":		ProcKW_Func(unit); break;
-			case "RAM":			ProcKW_RAM(unit);	break;
+			case "RAM":			ProcKW_RAM(unit, false);break;
+			case "ROM":			ProcKW_RAM(unit, true);	break;
 			case "sub_unit":	ProcKW_SubUnit(unit); break;
 			default: 	errInternal;
 		}

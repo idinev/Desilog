@@ -13,23 +13,38 @@ entity tute3{
 	
 	out wire u8 r0;
 	out wire u8 r1;
+	out wire u8 r2;
+	out wire u8 r3;
 }
 
 unit tute3{
 	RAM dual<clk,clk> u8 mem[256];
+	RAM <clk> u8 solo_ram[256];
+	ROM <clk> u8 mrom[256] = {
+		1,2,3,4,5,6,7,8
+	};
+	
 	
 	
 	on_clock<clk> main{
 		mem.addr0 = iaddr0;
 		mem.wdata0 = iwdata0;
 		mem.write0 = iwrite0;
-		mem.addr1 = iaddr1;
+		mem.addr1 = 4;
 		
 		//mem.write1 = 0;
 		//mem.wdata1 = 0;
 		
+		solo_ram.addr0 = iaddr0 + 5;
+		solo_ram.wdata0 = iwdata0 + 1;
+		solo_ram.write0 = iwrite0;
+		
+		mrom.addr0 = iaddr0;
+		
 		r0 = mem.data0;
 		r1 = mem.data1;
+		r2 = solo_ram.data0;
+		r3 = mrom.data0;
 	}
 }
 
@@ -38,12 +53,12 @@ unit tute3{
 testbench tute3 tute3_tb{
 	verify(3,3)
 		in (iwrite0, iwdata0, iaddr0, iaddr1)
-		out (r0)
+		out (r0, r2)
 	{
-		1, 0x55, 3, 0 : 0x55;
-		1, 0x66, 4, 0 : 0x66;
-		1, 0x77, 5, 0 : 0x77;
-		0, 0x88, 3, 0 : 0x55;
-		0, 0x99, 3, 0 : 0x55;
+		1, 0x55, 3, 0 : 0x55, 0x56;
+		1, 0x66, 4, 0 : 0x66, 0x67;
+		1, 0x77, 5, 0 : 0x77, 0x78;
+		0, 0x88, 3, 0 : 0x55, 0x56;
+		0, 0x99, 3, 0 : 0x55, 0x56;
 	}
 }

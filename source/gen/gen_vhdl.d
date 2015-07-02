@@ -442,7 +442,7 @@ use work.desilog.all;
 		}
 
 		foreach(KRAM h; unit){
-			xline("---- internal signals for RAM %s -------------", h.name);
+			xline("---- internal signals for %s %s -------------", h.isRom ? "ROM" : "RAM", h.name);
 			int actualSize = (1 << (logNextPow2(h.size)));
 
 			foreach(KVar v; h){
@@ -454,6 +454,20 @@ use work.desilog.all;
 				}else{
 					xput(";");
 				}
+			}
+			if(h.isRom){
+				xline("type %s_romtype is array(0 to %d) of %s;", h.name, h.size-1, typName(h.typ));
+				xline("signal %s_romdata : %s_romtype := (", h.name, h.name);
+				for(int idx=0; idx < h.size; idx++){
+					if(idx) xput(",");
+					if(!(idx & 7)) xline("\t");
+					if(idx < h.romData.length){
+						PrintMatchedSrc(h.typ, h.romData[idx]);
+					}else{
+						PrintTypeZeroInitter(h.typ);
+					}
+				}
+				xline(");");
 			}
 		}
 	}
@@ -537,7 +551,8 @@ use work.desilog.all;
 			printUnitSignalClockPump(clk, unit);
 		}
 
-		foreach(KRAM h; unit){
+		foreach(KRAM h; unit){ // for each RAM
+			if(h.isRom) continue;
 			int logSize = logNextPow2(h.size);
 			xnewline;
 			xline("%s: entity work.%s generic map(DATA_BITS=> %d, ADDR_BITS=>%d)", 
@@ -566,6 +581,34 @@ use work.desilog.all;
 				PrintPortPortmap(h, 1);
 			}
 			xput(");\n");
+		}
+
+		foreach(KRAM h; unit){ // for each ROM
+			if(!h.isRom) continue;
+			xnewline;
+
+			int numPorts = h.dual ? 2 : 1;
+
+			final void printVariables(KRAM h, int portIdx){
+				xline("	variable rv_addr%d : %s;", portIdx, typName(h.addrTyp));
+				xline("	variable rv_data%d : %s;", portIdx, typName(h.typ));
+			}
+			xline("process");
+			for(int i=0;i<numPorts;i++){
+				xline("	variable rv_addr%d : %s;", i, typName(h.addrTyp));
+				xline("	variable rv_data%d : %s;", i, typName(h.typ));
+			}
+			xline("begin");
+			mIndent++;
+			xline("	wait until rising_edge(%s_clk);", h.clk[0].name);
+			for(int i=0;i<numPorts;i++){
+				xline("%s_data%d <= rv_data%d;", h.name, i, i);
+				xline("rv_data%d := %s_romdata(to_integer(rv_addr%d));",i,  h.name, i);
+				xline("rv_addr%d := %s_addr%d;",i, h.name, i);
+			}
+			mIndent--;
+			xline("end process;");
+			xnewline;
 		}
 
 		xonceClear;
