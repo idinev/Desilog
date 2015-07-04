@@ -589,21 +589,15 @@ use work.desilog.all;
 
 			int numPorts = h.dual ? 2 : 1;
 
-			final void printVariables(KRAM h, int portIdx){
-				xline("	variable rv_addr%d : %s;", portIdx, typName(h.addrTyp));
-				xline("	variable rv_data%d : %s;", portIdx, typName(h.typ));
-			}
-			xline("process");
+			xline("process -- ROM pump for %s", h.name);
 			for(int i=0;i<numPorts;i++){
 				xline("	variable rv_addr%d : %s;", i, typName(h.addrTyp));
-				xline("	variable rv_data%d : %s;", i, typName(h.typ));
 			}
 			xline("begin");
 			mIndent++;
-			xline("	wait until rising_edge(%s_clk);", h.clk[0].name);
+			xline("wait until rising_edge(%s_clk);", h.clk[0].name);
 			for(int i=0;i<numPorts;i++){
-				xline("%s_data%d <= rv_data%d;", h.name, i, i);
-				xline("rv_data%d := %s_romdata(to_integer(rv_addr%d));",i,  h.name, i);
+				xline("%s_data%d <= %s_romdata(to_integer(rv_addr%d));",h.name, i,  h.name, i);
 				xline("rv_addr%d := %s_addr%d;",i, h.name, i);
 			}
 			mIndent--;

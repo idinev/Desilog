@@ -43,7 +43,7 @@ unit tute3{
 		
 		r0 = mem.data0;
 		r1 = mem.data1;
-		r2 = solo_ram.data0;
+		r2 = solo_ram.data0 + 1;
 		r3 = mrom.data0;
 	}
 }
@@ -53,12 +53,13 @@ unit tute3{
 testbench tute3 tute3_tb{
 	verify(3,3)
 		in (iwrite0, iwdata0, iaddr0, iaddr1)
-		out (r0, r2)
+		out (r0, r2, r3)
 	{
-		1, 0x55, 3, 0 : 0x55, 0x56;
-		1, 0x66, 4, 0 : 0x66, 0x67;
-		1, 0x77, 5, 0 : 0x77, 0x78;
-		0, 0x88, 3, 0 : 0x55, 0x56;
-		0, 0x99, 3, 0 : 0x55, 0x56;
+		1, 0x55, 3, 0 : 0x55, 0x57, 4;
+		1, 0x66, 4, 0 : 0x66, 0x68, 5;
+		1, 0x77, 5, 0 : 0x77, 0x79, 6;
+		0, 0x88, 3, 0 : 0x55, 0x57, 4;
+		0, 0x99, 3, 0 : 0x55, 0x57, 4;
+		1, 0xAA, 4, 0 : 0xAA, 0xAC, 5;
 	}
 }

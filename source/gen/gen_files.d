@@ -146,11 +146,8 @@ end architecture;
 `;
 
 
-// FIXME: implement
 const string gen_files_Desilog_generic_vhd =
 	`-- Abstraction layer for generic/Xilinx
-FIXME: implement
-
 
 -- =============== RAM 1-port sync-out ==============================
 library ieee;
@@ -173,9 +170,26 @@ entity dg_sys_ram_mono_sync is
 end entity;
 
 architecture rtl of dg_sys_ram_mono_sync is
+	type memtype is array (0 to 2**ADDR_BITS - 1) of unsigned(DATA_BITS-1 downto 0);
+	shared variable mem : memtype;	
+	
+	signal reg_write0 : std_ulogic;
+	signal reg_addr0  : unsigned((ADDR_BITS-1) downto 0);
+	signal reg_wdata0 : unsigned((DATA_BITS-1) downto 0);
 begin
-	rdata0 <= (others => '1'); -- FIXME
+	onclk0: process begin
+		wait until rising_edge(clk0);
+		reg_write0 <= write0;
+		reg_addr0  <= addr0;
+		reg_wdata0 <= wdata0;
+		
+		if reg_write0 = '1' then
+			mem(to_integer(reg_addr0)) := reg_wdata0;
+		end if;
+		rdata0 <= mem(to_integer(reg_addr0));
+	end process;
 end architecture;
+
 
 
 -- =============== RAM 2-port sync-out ==============================
@@ -204,8 +218,36 @@ entity dg_sys_ram_dual_sync is
 end entity;
 
 architecture rtl of dg_sys_ram_dual_sync is
+	type memtype is array (0 to 2**ADDR_BITS - 1) of unsigned(DATA_BITS-1 downto 0);
+	shared variable mem : memtype;	
+	
+	signal reg_write0, reg_write1 : std_ulogic;
+	signal reg_addr0,  reg_addr1  : unsigned((ADDR_BITS-1) downto 0);
+	signal reg_wdata0, reg_wdata1 : unsigned((DATA_BITS-1) downto 0);
 begin
-	rdata0 <= (others => '1'); -- FIXME
-	rdata1 <= (others => '1'); -- FIXME
+	onclk0: process begin
+		wait until rising_edge(clk0);
+		reg_write0 <= write0;
+		reg_addr0  <= addr0;
+		reg_wdata0 <= wdata0;
+		
+		if reg_write0 = '1' then
+			mem(to_integer(reg_addr0)) := reg_wdata0;
+		end if;
+		rdata0 <= mem(to_integer(reg_addr0));
+	end process;
+	
+	onclk1: process begin
+		wait until rising_edge(clk1);
+		reg_write1 <= write1;
+		reg_addr1  <= addr1;
+		reg_wdata1 <= wdata1;
+		
+		if reg_write1 = '1' then
+			mem(to_integer(reg_addr1)) := reg_wdata1;
+		end if;
+		rdata1 <= mem(to_integer(reg_addr1));
+	end process;
 end architecture;
+
 `;
