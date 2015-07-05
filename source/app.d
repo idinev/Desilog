@@ -20,8 +20,10 @@ int    cfgTestBenchDuration = 300; // duration of the testbench
 string cfgTestBenchVSim;
 bool   cfgDevErr = false;
 bool   cfgDevAst = false;
-bool   cfgVhdlAltera = false;
-bool   cfgVhdlGeneric = true;
+bool   cfgTestBenchAltera = false;
+bool   cfgTestBenchGeneric = true;
+bool   cfgGenReport = true;
+bool   cfgGenAssert = true;
 
 private{
 	int printHelp(){
@@ -30,17 +32,26 @@ private{
 Usage:
 	desilog -top <unit.name> [-idir <inputDir> ] [-odir <outputDir> ] [-cd <startDir> ]
 Example:
-	desilog -top example2.tb_example2 -idir examples -odir autogen
+	desilog -top example1
+	desilog -top example2.cpuTop -idir examples -odir autogen
 
 		-top <modname>		Specify .du file which to start compilation from. 
-		-cd	 <dirname>		Change to specified folder at beginning.
 		-idir <dirname>		Folder containing sourcecode .du and .dpack files. Default is current-folder.
-		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen"  .
+		-odir <dirname>		Folder where to generate VHDL files into. Default is "./autogen" .
+		-cd	 <dirname>		Change to specified folder at beginning.
+	
+	----< code generation >-------------
+		-gen.no_report		Remove all "report" statements. For final synthesis.
+		-gen.no_assert		Remove all "assert" statements. For final synthesis.
+
+	----< testbench >-------------------
 		-tb.vsim <name>		Run the specified bench through ModelSim's vsim. 
 		-tb.period <num>	Clock-period in picoseconds of the generated test-benches. Default is 10ps.
+		-tb.altera			Use Altera-specific abstraction vhdl files in vsim simulation of testbench. 
+
+	----< compiler bug-reporting >------
 		-dev.err			Print stacktrace on compile-error, useful for debugging. 
 		-dev.ast			Dump AST, useful for debugging
-		-vhdl.altera		Generate Altera-specific abstraction vhdl files. Simulatable. 
 `);
 		return -1;
 	}
@@ -70,15 +81,21 @@ Example:
 					string strPS = cmdArgs[aidx++];
 					cfgTestBenchPeriod = to!int(strPS);
 					break;
+				case "-tb.altera":
+					cfgTestBenchAltera = true;
+					cfgTestBenchGeneric = false;
+					break;
+				case "-gen.no_report":
+					cfgGenReport = false;
+					break;
+				case "-gen.no_assert":
+					cfgGenAssert = false;
+					break;
 				case "-dev.err":
 					cfgDevErr = true;
 					break;
 				case "-dev.ast":
 					cfgDevAst = true;
-					break;
-				case "-vhdl.altera":
-					cfgVhdlAltera = true;
-					cfgVhdlGeneric = false;
 					break;
 				default:
 					stderr.writefln("Error: unknown cmd arg: %s", arg);

@@ -225,9 +225,10 @@ class Tokenizer
 				char prevC;
 				for(;;){
 					prevC = c;
-					c = src[idx++];
+					c = src[idx];
 					if(c=='"' && prevC!='\\'){ idx++; break;}
 					if(c==0)break;
+					idx++;
 					//if(c==10 && !skipNewline)break;
 				}
 			}

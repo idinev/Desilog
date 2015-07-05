@@ -1,0 +1,39 @@
+// Demonstrate debugging facilities
+
+define DEBUG_ONCLOCK=1; // change this to 0 to disable reporting for this class
+
+
+entity tute4{
+	clock clk;
+	
+	out reg<clk> u8 sysCount = 0;
+}
+
+unit tute4{
+	
+	on_clock<clk> main{
+		sysCount++;
+		report(DEBUG_ONCLOCK,0, "On Clock", sysCount, sysCount[1]); // "0" is the error-level. here means "verbose", 1=note, 2=warning, 3+ is error
+		
+		if(!clk.reset){
+			if(sysCount == 2){
+				report(1, 2,  "Some warning"); // 2 means "warning"
+			}
+			
+			if(sysCount == 3){
+				report(1, 3,  "Some error"); // 3 means "error, level 3"
+			}
+			
+			if(sysCount == 4){
+				report(1, 100,  "Super-error"); // error-level is 100.
+			}
+			assert(sysCount < 10);
+		}
+	}
+}
+
+
+
+testbench tute4 tute4_tb{
+	
+}

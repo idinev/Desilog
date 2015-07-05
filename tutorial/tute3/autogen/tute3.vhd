@@ -15,7 +15,9 @@ entity tute3 is port(
 	iaddr0:	in u8; -- reg
 	iaddr1:	in u8; -- reg
 	r0:	out u8; -- WIRE
-	r1:	out u8 -- WIRE
+	r1:	out u8; -- WIRE
+	r2:	out u8; -- WIRE
+	r3:	out u8 -- WIRE
 	);
 end entity;
 
@@ -35,60 +37,117 @@ architecture rtl of tute3 is
 	signal dg_c_iaddr1: u8;
 	signal dg_w_r0: u8;
 	signal dg_w_r1: u8;
+	signal dg_w_r2: u8;
+	signal dg_w_r3: u8;
 	---- internal signals for RAM mem -------------
-	type mem_arrtype is array (0 to 255) of std_logic_vector(7 downto 0);
-	signal mem : mem_arrtype;
-	signal mem_addr0_wire: u8;
-	signal mem_addr0_reg : u8;
 	signal mem_data0: u8;
-	signal mem_wdata0: u8;
-	signal mem_write0: std_ulogic;
-	signal mem_addr1_wire: u8;
-	signal mem_addr1_reg : u8;
 	signal mem_data1: u8;
-	signal mem_wdata1: u8;
-	signal mem_write1: std_ulogic;
+	signal mem_addr0: u8;
+	signal mem_addr1: u8;
+	signal mem_wdata0: u8;
+	signal mem_wdata1: u8 := X"00"; -- WARNING: unwritten RAM input
+	signal mem_write0: std_ulogic;
+	signal mem_write1: std_ulogic := '0'; -- WARNING: unwritten RAM input
+	---- internal signals for RAM solo_ram -------------
+	signal solo_ram_data0: u8;
+	signal solo_ram_addr0: u8;
+	signal solo_ram_wdata0: u8;
+	signal solo_ram_write0: std_ulogic;
+	---- internal signals for ROM mrom -------------
+	signal mrom_data0: u8;
+	signal mrom_addr0: u8;
+	type mrom_romtype is array(0 to 255) of u8;
+	signal mrom_romdata : mrom_romtype := (
+		X"01",X"02",X"03",X"04",X"05",X"06",X"07",X"08",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00",
+		X"00",X"00",X"00",X"00",X"00",X"00",X"00",X"00"
+	);
 begin
 
 	main: process (all)
 	begin
 		dg_w_r0 <= X"00"; -- wire pre-zero-init
 		dg_w_r1 <= X"00"; -- wire pre-zero-init
-		mem_write0 <= '0';
-		mem_addr0_wire <= (others => '0');
-		mem_wdata0 <= X"00";
-		mem_write1 <= '0';
-		mem_addr1_wire <= (others => '0');
-		mem_wdata1 <= X"00";
-		mem_addr0_wire <= iaddr0;
-		mem_write0 <= '1';
+		dg_w_r2 <= X"00"; -- wire pre-zero-init
+		dg_w_r3 <= X"00"; -- wire pre-zero-init
+		mem_addr0 <= X"00"; -- wire pre-zero-init
+		mem_addr1 <= X"00"; -- wire pre-zero-init
+		mem_wdata0 <= X"00"; -- wire pre-zero-init
+		mem_write0 <= '0'; -- wire pre-zero-init
+		solo_ram_addr0 <= X"00"; -- wire pre-zero-init
+		solo_ram_wdata0 <= X"00"; -- wire pre-zero-init
+		solo_ram_write0 <= '0'; -- wire pre-zero-init
+		mrom_addr0 <= X"00"; -- wire pre-zero-init
+		mem_addr0 <= iaddr0;
 		mem_wdata0 <= iwdata0;
-		mem_addr1_wire <= iaddr1;
+		mem_write0 <= iwrite0;
+		mem_addr1 <= X"04";
+		solo_ram_addr0 <= (iaddr0 + 5);
+		solo_ram_wdata0 <= (iwdata0 + 1);
+		solo_ram_write0 <= iwrite0;
+		mrom_addr0 <= iaddr0;
 		dg_w_r0 <= mem_data0;
 		dg_w_r1 <= mem_data1;
+		dg_w_r2 <= (solo_ram_data0 + 1);
+		dg_w_r3 <= mrom_data0;
 	end process;
 
 	----[ sync clock pump for clk ]------
 	process begin
 		wait until rising_edge(clk_clk);
 	end process;
-	--- clock pump for RAM mem port
-	process(clk_clk) begin 	if(rising_edge(clk_clk)) then
-		if mem_write0='1' then
-			mem(to_integer(mem_addr0_wire)) <= std_logic_vector(mem_wdata0);
-		end if;
-		if mem_write1='1' then
-			mem(to_integer(mem_addr1_wire)) <= std_logic_vector(mem_wdata1);
-		end if;
-		mem_addr0_reg <= mem_addr0_wire;
-		mem_addr1_reg <= mem_addr1_wire;
-	end if; end process;
-	mem_data0 <= unsigned(mem(to_integer(mem_addr0_reg)));
-	mem_data1 <= unsigned(mem(to_integer(mem_addr1_reg)));
+
+	mem: entity work.dg_sys_ram_dual_sync generic map(DATA_BITS=> 8, ADDR_BITS=>8)
+		port map(clk_clk, mem_write0, mem_addr0, mem_wdata0, mem_data0, clk_clk, mem_write1, mem_addr1, mem_wdata1, mem_data1);
+
+
+	solo_ram: entity work.dg_sys_ram_mono_sync generic map(DATA_BITS=> 8, ADDR_BITS=>8)
+		port map(clk_clk, solo_ram_write0, solo_ram_addr0, solo_ram_wdata0, solo_ram_data0);
+
+
+	process -- ROM pump for mrom
+		variable rv_addr0 : u8;
+	begin
+		wait until rising_edge(clk_clk);
+		mrom_data0 <= mrom_romdata(to_integer(rv_addr0));
+		rv_addr0 := mrom_addr0;
+	end process;
+
 
 	------[ output registers/wires/latches ] --------------
 	r0 <= dg_w_r0;
 	r1 <= dg_w_r1;
+	r2 <= dg_w_r2;
+	r3 <= dg_w_r3;
 end;
 
 

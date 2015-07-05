@@ -50,14 +50,14 @@ class KExprEnumMemb : KExpr{
 
 
 
-int reqGetConstIntegerExpr(int imin, int imax){
+int reqGetConstIntegerExpr(int imin, int imax, bool limit = true){
 	XOffset off;
 	KNode dummyNode = new KNode;
 	off = ReadXOffset(dummyNode);
 	
 	if(off.exp) err("Constant integer expression required");
-	
-	if(off.idx < imin || off.idx > imax){
+
+	if(limit && (off.idx < imin || off.idx > imax)){
 		err("Value out of acceptable range [", imin, ":", imax, "]", imin, imax);
 	}
 	return off.idx;

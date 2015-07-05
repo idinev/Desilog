@@ -952,6 +952,38 @@ use work.desilog.all;
 		errInternal;
 	}
 
+	void printVHDL(KStmtReport s){
+		if(!s.allow) return;
+		if(!cfgGenReport) return;
+		string padding = ` & " "`; // can be configured to be none
+		string severityStr;
+		string vhdlSevStr;
+		switch(s.severityLevel){
+			case 0:  severityStr = "DG_VERBOSE";	vhdlSevStr="note";		break;
+			case 1:  severityStr = "DG_NOTE";		vhdlSevStr="note";		break;
+			case 2:  severityStr = "DG_WARNING";	vhdlSevStr="warning";	break;
+			default: severityStr = "DG_ERROR";		vhdlSevStr="error";
+		}
+		xline(`report "%s%d: "`, severityStr, s.severityLevel);
+		foreach(idx, str; s.strings){
+			if(s.values[idx]){
+				xput(` & str(`);
+				printVHDL(s.values[idx]);
+				xput(`)%s`, padding);
+			}else{
+				xput(` & %s%s`, str, padding);
+			}
+		}
+		xput(" severity %s;", vhdlSevStr);
+	}
+
+	void printVHDL(KStmtAssert s){
+		if(!cfgGenAssert) return;
+		xline("assert ");
+		PrintConditionalExpr(s.cond);
+		xput(` report "DG assert fail at %s:%d" severity failure;`, s.fileName, s.lineNum);
+	}
+
 	void printVHDL(KStmt s){
 			  if(auto a = cast(KStmtSet)s)		printVHDL(a);
 		else if(auto a = cast(KStmtMux)s)		printVHDL(a);
@@ -962,6 +994,8 @@ use work.desilog.all;
 		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
 		else if(auto a = cast(KStmtReturn)s)	printVHDL(a);
 		else if(auto a = cast(KStmtIncDec)s)	printVHDL(a);
+		else if(auto a = cast(KStmtReport)s)	printVHDL(a);
+		else if(auto a = cast(KStmtAssert)s)	printVHDL(a);
 		else errInternal;
 	}
 
@@ -1363,10 +1397,10 @@ private{
 		CreateFile("desilog");
 		xput(gen_files_Desilog_vhd);
 
-		CreateFile("desilog_altera", cfgVhdlAltera);
+		CreateFile("desilog_altera", cfgTestBenchAltera);
 		xput(gen_files_Desilog_altera_vhd);
 
-		CreateFile("desilog_generic", cfgVhdlGeneric);
+		CreateFile("desilog_generic", cfgTestBenchGeneric);
 		xput(gen_files_Desilog_generic_vhd);
 	}
 }

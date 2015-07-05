@@ -60,6 +60,19 @@ class KStmtSwitch : KStmt{
 	KScope others;
 }
 
+class KStmtReport : KStmt{
+	bool allow;
+	int severityLevel;
+	KExpr[] values;
+	string[] strings;
+}
+
+class KStmtAssert : KStmt{
+	KExpr cond;
+	string fileName;
+	int lineNum;
+}
+
 class KStmtReturn : KStmt{
 	KExpr src;
 	KFunc func;
@@ -276,6 +289,38 @@ KStmt ParseStatementSwitch(KScope node){
 	return s;
 }
 
+
+KStmt ParseStatementReport(KScope node){
+	KStmtReport rep = new KStmtReport;	req('(');
+	rep.allow = reqGetConstIntegerExpr(0, 0, false) > 0;		req(',');
+	rep.severityLevel = reqGetConstIntegerExpr(0, 1000);	req(',');
+
+	for(;;){
+		if(cc.typ == TokTyp.quot){
+			string str = cc.str; gtok;
+			rep.strings ~= str;
+			rep.values  ~= null;
+		}else{
+			KExpr expr = ReadExpr(node);
+			rep.strings ~= null;
+			rep.values  ~= expr;
+		}
+		if(peek(')'))break;
+		req(',');
+	}
+	req(';');
+	return rep;
+}
+
+KStmt ParseStatementAssert(KScope node){
+	KStmtAssert asrt = new KStmtAssert;	req('(');
+	asrt.fileName = "<unknown>.du"; // FIXME
+	asrt.lineNum = 1; // FIXME
+	asrt.cond = ReadExpr(node);
+	req(')'); req(';');
+	return asrt;
+}
+
 void ParseStatementVar(KScope node, ref KStmt[] code){
 	KScope root = reqGetRootScope(node);
 	KTyp typ = reqTyp(root);
@@ -340,6 +385,10 @@ void ReadStatementLine(KScope node, ref KStmt[] code){
 		s = ParseStatementReturn(node);
 	}else if(word == "switch"){
 		s = ParseStatementSwitch(node);
+	}else if(word == "report"){
+		s = ParseStatementReport(node);
+	}else if(word == "assert"){
+		s = ParseStatementAssert(node);
 	}else{
 		KArg dst = reqReadArg(word, node, true);
 		

@@ -90,7 +90,7 @@ void ProcKW_RAM(KUnit unit, bool isRom){
 	ram.typ = reqTyp(unit);
 	ram.readUniqName(unit);
 	req('[');
-	ram.size = reqGetConstIntegerExpr(1,4*1024*1024);
+	ram.size = reqGetConstIntegerExpr(1,1024*1024*1024);
 	req(']');
 	if(ram.isRom){
 		ReadROMContents(ram);
