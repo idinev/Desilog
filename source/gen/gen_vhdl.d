@@ -1162,6 +1162,7 @@ use work.desilog.all;
 			case "^": vop = "xor"; break;
 			case "&": vop = "and"; break;
 			case "|": vop = "or"; break;
+			case "~": vop = "&"; break;
 			default:  vop = k.binOp;
 		}
 

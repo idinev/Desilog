@@ -1,0 +1,307 @@
+entity cpu_sweet32{
+	clock clk;
+	in reg<clk> {
+		bit IRQ0;
+		u16 data_i;
+	}
+	out reg<clk>{
+		bit mem_write_o = 0;
+		bit mem_read_o = 1;
+		u32 addr_o;
+		u16 data_o;
+	}
+}
+
+unit cpu_sweet32{
+
+	define OPCODE_AND	  = 0x0;
+	define OPCODE_ADD	  = 0x1;
+	define OPCODE_XOR     = 0x2;
+	define OPCODE_COMPARE = 0x3;
+	define OPCODE_SUBSLT  = 0x4;
+	define OPCODE_MUL16   = 0x5;
+	define OPCODE_SJMP12  = 0x6;
+	define OPCODE_LDB     = 0x7;
+	define OPCODE_RJMP28  = 0x8;
+	define OPCODE_GETPC   = 0x9;
+	define OPCODE_INCS    = 0xA;
+	define OPCODE_LDD     = 0xB;
+	define OPCODE_SWAP    = 0xC;
+	define OPCODE_LSRASR  = 0xD;
+	define OPCODE_MOVMR   = 0xE;
+	define OPCODE_MOVRM   = 0xF;
+	
+	enum CpuStates{
+		DECODE_OP, EXECUTE_MOV_IM, EXECUTE_MOV_RM, EXECUTE_MOV_MR
+	}
+	
+	reg<clk>{
+		CpuStates cpu_state = CpuStates.DECODE_OP;
+		u32 pc = 0;
+		u32 Next_opcode_addr;
+		vec[12] signed_rel12;
+		u32 core_a_data, core_b_data;
+		u64 accumulator;
+		u16 temp_register;
+		
+		bit CPU_Regfile_Wr_En = 0;
+		vec[3] xfer_state;
+		
+		u32 interrupt_address, interrupt_return;
+		bit interrupt_enable = 0, interrupt_trigger = 0, interrupt_ack;
+		
+		bit trace_enable, trace_trigger = 0, trace_ack, trace_flip = 0;
+		u32 trace_return;
+		
+		u32 user_bitfield;
+		bit signed_op, IRQ_inhibit = 0;
+		
+	}
+	
+	func u32 sign12_32(vec[12] x){
+		var u32 res;
+		res ?= x[11] ? 0xFFFFFFFF : 0;
+		res[0,12] = x;
+		return res;
+	}
+	func u32 sign28_32(vec[28] x){
+		var u32 res;
+		res ?= x[27] ? 0xFFFFFFFF : 0;
+		res[0,28] = x;
+		return res;
+	}
+	func vec[33] sign4_33(vec[4] x){
+		var vec[33] res;
+		res ?= x[3] ? 0x1FFFFFFFF : 0;
+		res[0,4] = x;
+		return res;
+	}
+	func u32 unsign4_32(vec[4] x){
+		var u32 res = 0;
+		res[0,4] = x;
+		return res;
+	}
+	
+	on_clock<clk> main{
+		if(!clk.reset){
+			switch(cpu_state){
+			  case CpuStates.DECODE_OP:
+				CPU_Regfile_Wr_En = 1;			
+				mem_write_o = 0;
+				mem_read_o = 1;
+				IRQ_inhibit = 0;	
+				pc++;
+				
+				// Trace/debug interrupt event handler
+				if (trace_enable & !trace_trigger & trace_flip){ // Trace interrupt check
+					trace_trigger = 1;
+					trace_return = pc;
+					pc = 2;
+					CPU_Regfile_Wr_En = 0;
+					trace_flip = 0;
+					
+				// External IRQ interrupt event handler	
+				}elif (IRQ0 & interrupt_enable & !interrupt_trigger & !IRQ_inhibit  & !trace_flip){ // Level triggered IRQ
+					interrupt_trigger = 1;
+					interrupt_return = pc;
+					pc = interrupt_address;
+					CPU_Regfile_Wr_En = 0;
+				}else{ // Instruction decode logic begins here
+					if trace_enable{
+						trace_flip = 1;
+					}
+					
+					switch(data_i[12,4]){
+					  case OPCODE_AND: //AND _
+						accumulator[0,32] = core_a_data & core_b_data;
+						
+					  case OPCODE_ADD: //ADD _
+						accumulator[0,32] = core_a_data + core_b_data;	
+						
+					  case OPCODE_XOR: //XOR _
+						accumulator[0,32] = core_a_data ^ core_b_data;
+
+					  case OPCODE_COMPARE: //TSTSNZ _
+						CPU_Regfile_Wr_En = 0; // Result not saved! 
+						if (data_i[7] == 0){
+							if ((core_b_data & core_a_data) != 0){
+								pc = pc + 2; // Skip next opcode if Carry = 1 					
+							}
+						}else{	// BITSNZ 
+							if ((core_b_data & user_bitfield) != 0){
+								pc = pc + 2; // Skip next opcode if Carry = 1 					
+							}
+						}
+					  case OPCODE_SUBSLT: //SUBSLT _
+						var vec[33] sub33; 
+						sub33 = ('0' ~ core_a_data) - ('0' ~ core_b_data);
+						accumulator[0,33] = sub33;
+						if(sub33[32]){
+							pc = pc + 2; // Skip next opcode if Carry = 1
+						}
+
+					  case OPCODE_MUL16: //MUL 16x16 
+						//if IMPLEMENT_32x32_MULTIPLY=true then
+							accumulator = core_a_data * core_b_data;
+							IRQ_inhibit = '1';	
+						//else
+						///	accumulator[0,32] = core_a_data(15 downto 0) * core_b_data(15 downto 0); //(Comment out if using 32x32 multiplier) 
+						//end if;
+
+					  case OPCODE_SJMP12: //12bit SJMP _
+						pc = pc + sign12_32(data_i[0,12]);	
+						CPU_Regfile_Wr_En = 0;
+
+					  case OPCODE_LDB: //LDB
+						accumulator[8,24] = 0;
+						accumulator[4,4] = data_i[8,4];
+						accumulator[0,4] = data_i[0,4];
+						
+					  case OPCODE_RJMP28: //28bit LJMP _
+						cpu_state = CpuStates.EXECUTE_MOV_IM;
+						CPU_Regfile_Wr_En = 0;
+						xfer_state = '111';
+						signed_rel12 = data_i[0,12];
+						
+					  case OPCODE_GETPC: //GETPC _
+						accumulator[0,32] = pc + unsign4_32(data_i[0,4]);
+						
+					  case OPCODE_INCS: //INCS _
+						accumulator[0,33] =  ('0' ~ core_b_data) + sign4_33(data_i[0,4]);		
+						
+					  case OPCODE_LDD: // LOAD IMM16/32
+						CPU_Regfile_Wr_En = 0;
+						switch data_i[8,4]{
+							case 0: // LOAD IMM16				
+								accumulator[16,16] = 0;
+								cpu_state = CpuStates.EXECUTE_MOV_IM;
+								xfer_state = '100';
+							case 1: //  LOAD IMM32
+								cpu_state = CpuStates.EXECUTE_MOV_IM;
+								xfer_state = '000';
+								
+							case 2: // LOAD IRQ VECTOR
+								interrupt_address = core_a_data;
+								
+							case 3: // INTERRUPT RETURN
+								pc = interrupt_return;
+								interrupt_trigger = 0;
+								//trace_flip = 0;
+							case 4: // Set CPU control word
+								interrupt_enable = core_a_data[0];
+								trace_enable = core_a_data[31];
+								trace_flip = 0;
+							case 5: // TRACE RETURN
+								pc = trace_return;
+								trace_trigger = 0;
+								trace_flip = 0;
+							case 6: // GET UPPER 32bit MATH RESULT (Un-comment if using 32x32 multiplier)
+								//if IMPLEMENT_32x32_MULTIPLY=true then
+									accumulator[0,32] = accumulator[32,32];
+									IRQ_inhibit = 0;	
+									CPU_Regfile_Wr_En = 1;
+								//else 
+								//	null; 
+								//end if;
+							case 7: // GET Trace Return address
+								accumulator[0,32] = trace_return;
+								CPU_Regfile_Wr_En = 1;
+						}
+						
+					  case OPCODE_SWAP:
+						switch data_i[8,4] { 
+							case 0: //	SWAPB _
+								accumulator[16,16] = core_a_data[16,16];
+								accumulator[8,8] = core_a_data[0,8];
+								accumulator[0,8] = core_a_data[8,8];
+							case 1:	// SWAPW _
+								accumulator[16,16] = core_a_data[0,16];
+								accumulator[0,16] = core_a_data[16,16];
+							case 2: // NOT
+								accumulator[0,32] = !core_a_data;
+							case 3: // LJMP
+								pc = core_a_data; 
+								CPU_Regfile_Wr_En = 0;
+						}
+						
+					  case OPCODE_LSRASR:
+						accumulator[0,31] = core_a_data[1,31];
+						switch data_i[8,4]{
+							case '0000': // Logical Shift Right                
+								accumulator[31] = 0; 
+							//    if(core_a_data(0) = '1') then
+							//        pc <= pc + 2; // Skip next opcode if Carry = 1    
+							//    end if;    
+							case '0001': // Arithmetic Shift Right
+								accumulator[31] = core_a_data[31];
+						}
+
+					  case OPCODE_MOVMR:
+						pc = core_a_data;
+						cpu_state = CpuStates.EXECUTE_MOV_MR;
+						mem_write_o = 1;
+						mem_read_o = 0; 
+						CPU_Regfile_Wr_En = 0;
+						Next_opcode_addr = pc;    // Update Program counter
+						switch data_i[4,4]{
+							case '0000':    //MOVW
+								data_o = core_b_data[0,16];
+								xfer_state = '001';                            
+							case '0001':    //MOVD
+								data_o = core_b_data[16,16]; // Remember - Big endian data transfer = Upper-word 1st!
+								temp_register = core_b_data[0,16]; // OPCD_REGB_REGZ_REGA
+								xfer_state = '000';
+						}
+						
+					  case OPCODE_MOVRM:
+						pc = core_a_data;   // NOTE! DIFFERENT OPCODE ENCODING    
+						cpu_state = CpuStates.EXECUTE_MOV_RM; // FROM 16BIT MEMORY MOVE
+						CPU_Regfile_Wr_En = 0;
+						Next_opcode_addr = pc;    // Update Program counter                        
+						switch data_i[8,4]{
+							case '0000':    //MOVW
+								accumulator[16,16] = 0;
+								xfer_state = '001';     
+							case '0001':    //MOVD
+								xfer_state = '000';    
+							case '0010':    //MOVWS
+								xfer_state = '000';    
+								signed_op = 1;
+						}
+					} // end switch(data_i[12,4])
+				} // end else
+				
+			  case CpuStates.EXECUTE_MOV_IM: // Data immediate transfer state
+				switch xfer_state{
+					case '000':    // #immediate_32 entry point    
+						pc++;
+						accumulator[16,16] = data_i[0,16];
+						xfer_state = '001';
+					case '001':
+						accumulator[0,16] = data_i[0,16];        
+						pc = pc - 2; 
+						xfer_state = '010';
+					case '010':    // #immediate_32 entry point    
+						pc = pc + 3;
+						CPU_Regfile_Wr_En = 1;    
+						cpu_state = CpuStates.DECODE_OP;    
+					case '100':
+						accumulator[0,16] = data_i[0,16];        
+						pc = pc - 1; 
+						xfer_state = '101';
+					case '101':    // #immediate_32 entry point    
+						pc = pc + 2;
+						CPU_Regfile_Wr_En = 1;    
+						cpu_state = CpuStates.DECODE_OP;   
+					case '111':
+						pc  = pc + sign28_32(signed_rel12 ~ data_i[0,16]);    
+						cpu_state = CpuStates.DECODE_OP;
+					
+				}
+			  case CpuStates.EXECUTE_MOV_RM:
+			  
+			} // end switch(cpu_state)
+		}
+	}
+	
+}

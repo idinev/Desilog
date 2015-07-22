@@ -157,6 +157,7 @@ private{
 				n.val = nt.value;
 				n.minBits = nt.minBits;
 				n.numBits = nt.numBits;
+				n.finalTyp = getCustomSizedVec(nt.numBits);
 				gtok;
 				return n;
 			}
@@ -220,11 +221,22 @@ private{
 		if(!e.finalTyp) return false;
 		return e.finalTyp.kind == KTyp.EKind.kvec;
 	}
+	bool IsSizedVectorTyp(KExpr e){
+		if(cast(KExprSizNum)e) return true;
+		if(!e.finalTyp) return false;
+		return e.finalTyp.kind == KTyp.EKind.kvec;
+	}
 
 	void ReqIsVectorTyp(KExpr e){
 		if(IsVectorTyp(e)) return;
 		err("Vector or number required");
 	}
+
+	void ReqIsSizedVectorTyp(KExpr e){
+		if(IsSizedVectorTyp(e)) return;
+		err("Vector required");
+	}
+
 	bool IsSameVecSize(KExpr a, KExpr b){
 		KExprNum c1 = cast(KExprNum)a;
 		KExprNum c2 = cast(KExprNum)b;
@@ -297,8 +309,31 @@ private{
 					return ReduceConstExprToKExpr(op, c1.val,c2.val);
 				}
 
-				notImplemented;
-				return null;
+				ReqIsSizedVectorTyp(v1);
+				ReqIsSizedVectorTyp(v2);
+
+				KExprBin b = new KExprBin;
+				b.binOp = op;
+				b.x = v1;
+				b.y = v2;
+				if(op=="*"){
+					b.finalTyp = getCustomSizedVec(v1.finalTyp.size + v2.finalTyp.size);
+				}else{
+					notImplemented;
+				}
+				return b;
+			}
+			case "~":
+			{
+				ReqIsSizedVectorTyp(v1);
+				ReqIsSizedVectorTyp(v2);
+
+				KExprBin b = new KExprBin;
+				b.binOp = op;
+				b.x = v1;
+				b.y = v2;
+				b.finalTyp = getCustomSizedVec(v1.finalTyp.size + v2.finalTyp.size);
+				return b;
 			}
 			default:
 				err("Unknown operator");
@@ -313,6 +348,7 @@ private{
 			case "%":  return 7;
 			case "+":  return 6;
 			case "-":  return 6;
+			case "~":  return 6;
 			case "<<": return 5;
 			case ">>": return 5;
 			case ">":  return 4;
