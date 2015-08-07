@@ -291,6 +291,7 @@ private{
 				if(arg.finalTyp.kind == KTyp.EKind.karray){
 					XOffset off = ReadXOffset(node);
 					arg.offsets ~= off;
+					req(']');
 				}else if(arg.finalTyp.kind == KTyp.EKind.kvec){
 					if(arg.finalTyp.size == 1)err("Cannot slice a single bit");
 					XOffset bitOffs;

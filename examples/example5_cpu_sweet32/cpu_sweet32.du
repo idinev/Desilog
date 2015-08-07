@@ -76,10 +76,9 @@ unit cpu_sweet32{
 		res[0,4] = x;
 		return res;
 	}
-	func u32 unsign4_32(vec[4] x){
-		var u32 res = 0;
-		res[0,4] = x;
-		return res;
+	
+	link{
+		addr_o = pc;
 	}
 	
 	on_clock<clk> main{
@@ -164,7 +163,8 @@ unit cpu_sweet32{
 						signed_rel12 = data_i[0,12];
 						
 					  case OPCODE_GETPC: //GETPC _
-						accumulator[0,32] = pc + unsign4_32(data_i[0,4]);
+						//accumulator[0,32] = pc + unsign4_32(data_i[0,4]);
+						accumulator[0,32] = pc +  cast(u32)data_i[0,4];
 						
 					  case OPCODE_INCS: //INCS _
 						accumulator[0,33] =  ('0' ~ core_b_data) + sign4_33(data_i[0,4]);		
@@ -299,7 +299,39 @@ unit cpu_sweet32{
 					
 				}
 			  case CpuStates.EXECUTE_MOV_RM:
-			  
+				switch xfer_state{
+					case '000': // #immediate_32 entry point    
+						pc = pc + 1;
+						accumulator[16,16] = data_i[0,16];
+						xfer_state = '001';
+					case '001':
+						if signed_op{
+							accumulator[16,16] ?= data_i[15] ? 0xFFFF : 0x0000;
+							signed_op = 0;
+						}
+						accumulator[0,16] = data_i[0,16];
+						pc = Next_opcode_addr;    // Update Program counter
+						xfer_state = '010';
+					case '010':
+						CPU_Regfile_Wr_En = 1;    
+						pc = pc + 1;
+						
+						cpu_state = CpuStates.DECODE_OP;
+				}
+			  case CpuStates.EXECUTE_MOV_MR:
+				switch xfer_state{
+				   // mem[Reg] <- Reg State machine
+				   // 32-bit move                   
+					case '000':   // 32bit mem word[Rx] = Rz
+						pc = pc + 1;
+						data_o = temp_register;
+						xfer_state = '001';
+					case '001':        
+						mem_write_o = 0;     // Write complete!
+						pc = Next_opcode_addr + 1;    // Update Program counter
+						cpu_state = CpuStates.DECODE_OP;        
+						mem_read_o = 1;
+				}
 			} // end switch(cpu_state)
 		}
 	}
