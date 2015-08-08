@@ -10,11 +10,7 @@ import app;
 import gen.gen_files;
 
 private{
-	enum strDesilog_SrcOutReg 	= "dg_o_";
-	enum strDesilog_DstOutWire	= "dg_w_";
-	enum strDesilog_DstOutLatch	= "dg_l_";
-	enum strDesilog_DstReg 		= "dg_c_"; // actually a combi-out to be registered later
-
+	enum strDesilog_DstOut = "dg_o_";
 	string vhdlFilenameFromURI(string uri){
 		return "out/" ~ uri ~ ".vhd";
 	}
@@ -205,16 +201,7 @@ use work.desilog.all;
 
 	string GetSpecialVarPrefix(KVar var, bool isDest){
 		if(var.Is.isOut){
-			switch(var.storage){
-				case KVar.EStor.kreg:	return isDest ? strDesilog_DstReg : strDesilog_SrcOutReg;
-				case KVar.EStor.kwire:	return strDesilog_DstOutWire;
-				case KVar.EStor.klatch:	return strDesilog_DstOutLatch;
-				default:	errInternal;
-			}
-		}
-
-		if(isDest &&  var.storage == KVar.EStor.kreg){
-			return strDesilog_DstReg;
+			return strDesilog_DstOut;
 		}
 		return "";
 	}
@@ -260,9 +247,7 @@ use work.desilog.all;
 
 
 	void PrintPreloadSignal(KVar var, KScope scop){
-		if(var.storage == KVar.EStor.kreg){
-			xline("%s <= %s; -- reg preload", varName(var,true), varName(var,false));
-		}else if(var.storage == KVar.EStor.klatch){
+		if(var.storage == KVar.EStor.klatch){
 			xline("%s <= %s", varName(var,true), varName(var,false));
 			if(var.resetExpr){
 				if(KProcess proc = cast(KProcess)scop){
@@ -336,103 +321,39 @@ use work.desilog.all;
 		xline("	);\nend entity;");
 	}
 
-	void printUnitSignal(KVar v){
-		string prefix = GetSpecialVarPrefix(v, true);
-		if(!prefix.length) return;
-		xput("\n	signal %s%s: %s;", prefix, v.name, typName(v.typ));
-		if(v.Is.isOut && v.storage == KVar.EStor.kreg){
-			prefix = GetSpecialVarPrefix(v, false);
-			xput("\n	signal %s%s: %s;", prefix, v.name, typName(v.typ));
-		}
-	}
-
-	void printUnitSignalClockPump(KClock clk, KUnit unit){
-		xnewline;
-		xline("----[ sync clock pump for %s ]------", clk.name);
-		xline("process begin"); mIndent++;
-		xline("wait until rising_edge(%s_clk);", clk.name);
-
-		bool anyReset = false;
-		KNode[] nodesWithVars = [unit];
-		foreach(KSubUnit sub; unit) nodesWithVars ~= sub;
-
-		static bool isWritableReg(KVar reg){
-			if(reg.storage != KVar.EStor.kreg) return false;
-			if(reg.Is.readOnly)  return false;
-			if(reg.writer && cast(KLink)reg.writer) return false;
-			return true;
-		}
-
-		foreach(KNode n; nodesWithVars){
-			foreach(KVar reg; n){ // find non-input regs
-				if(!isWritableReg(reg))continue;
-				if(reg.resetExpr) anyReset = true;
-				xline("%s <= %s;", varName(reg, false), varName(reg, true));
-			}
-		}
-
-		if(anyReset){
-			xline("if %s_reset_n = '0' then", clk.name);
-			foreach(KNode n; nodesWithVars){
-				foreach(KVar reg; n){ // find non-input regs with init
-					if(!isWritableReg(reg))continue;
-					if(!reg.resetExpr)continue;
-					xline("	%s <= ", varName(reg, false));
-					PrintMatchedSrc(reg.typ, reg.resetExpr);
-					xput(";");
-				}
-			}
-			xline("end if;");
-		}
-		mIndent--; xline("end process;");
-	}
 
 	void printUnitSignalsVHDL(KUnit unit){
 		foreach(KVar v; unit){
-			if(v.Is.port)continue;
+			if(v.Is.port && !v.Is.isOut)continue;
 			//if(v.Is.handle) continue;
+			string prefix = GetSpecialVarPrefix(v, true);
 			string stor;
+
 			switch(v.storage){
 				case KVar.EStor.kreg:	stor = "	-- reg"; break;
 				case KVar.EStor.kwire:	stor = "	-- WIRE"; break;
 				case KVar.EStor.klatch:	stor = "	-- LATCH!!!"; break;
 				default:				stor = "";
 			}
-			xput("\n	signal %s: %s;%s", v.name, typName(v.typ), stor);
-		}
-
-		xonceClear();
-		foreach(KVar v; unit){
-			xoncePut("\n\n\t----- internal regs/wires/etc --------");
-			printUnitSignal(v);
+			xput("\n	signal %s%s: %s;%s", prefix, v.name, typName(v.typ), stor);
 		}
 
 		xonceClear();
 		foreach(KSubUnit sub; unit){
 			if(sub.isInPort) continue;
-			xoncePut("\n\n\t----- unit signals -------------");
+			xoncePut("\n\n\t----- sub-unit signals -------------");
 
 			if(sub.isArray){
 				notImplemented;
 			}
 			foreach(KVar m; sub){
-				for(int i=0;i<2;i++){
-					if(i){
-						if(m.storage != KVar.EStor.kreg)break;
-						if(m.Is.readOnly)break;
-						if(m.writer && cast(KLink)m.writer){
-							// is written by a link, 
-							//don't make an extra signal
-							break; 
-						}
-					}
-					xline("	signal %s : ", varName(m, i==1));
-					if(sub.isArray){
-						//xput("typ_%s_%s;", v.name, m.name);
-					}else{
-						xput("%s;", typName(m.typ));
-					}
+				xline("	signal %s : ", varName(m, false));
+				if(sub.isArray){
+					//xput("typ_%s_%s;", v.name, m.name);
+				}else{
+					xput("%s;", typName(m.typ));
 				}
+
 			}
 			foreach(KClock subClk; sub){
 				// print local signals for the clocks of this subunit
@@ -495,11 +416,15 @@ use work.desilog.all;
 		xput("\nbegin");
 
 		foreach(KCombi p; unit){
-			printVHDLProcess(p);
+			printVHDLProcess(p, false);
 		}
 		
 		foreach(KProcess p; unit){
-			printVHDLProcess(p);
+			printVHDLProcess(p, false);
+		}
+
+		foreach(KProcess p; unit){
+			printVHDLProcess(p, true);
 		}
 
 
@@ -542,14 +467,10 @@ use work.desilog.all;
 			xoncePut("\n\n\t-------[ links ]----------");
 			foreach(e; k.code){
 				KStmtLink s = cast(KStmtLink)e;
-				s.printVHDL();
+				s.printVHDL(false);
 			}
 		}
 
-		
-		foreach(KClock clk; unit){
-			printUnitSignalClockPump(clk, unit);
-		}
 
 		foreach(KRAM h; unit){ // for each RAM
 			if(h.isRom) continue;
@@ -619,26 +540,85 @@ use work.desilog.all;
 
 	}
 
-	void printVHDLProcess(KScope proc){
+	void printVHDLProcessReset(KProcess proc){
+		bool anyReset = false;
+		KNode unit = proc.parent;
+		KNode[] nodesWithVars = [unit];
+		foreach(KSubUnit sub; unit) nodesWithVars ~= sub;
+		
+		static bool isWritableReg(KVar reg){
+			if(reg.storage != KVar.EStor.kreg) return false;
+			if(reg.Is.readOnly)  return false;
+			if(reg.writer && cast(KLink)reg.writer) return false;
+			return true;
+		}
+		
+		foreach(KNode n; nodesWithVars){
+			foreach(KVar reg; n){ // find non-input regs
+				if(reg.writer != proc)continue;
+				if(!isWritableReg(reg))continue;
+				if(reg.resetExpr) anyReset = true;
+			}
+		}
+		
+		if(anyReset){
+			xline("if %s_reset_n = '0' then", proc.clk.name);
+			foreach(KNode n; nodesWithVars){
+				foreach(KVar reg; n){ // find non-input regs with init
+					if(reg.writer != proc)continue;
+					if(!isWritableReg(reg))continue;
+					if(!reg.resetExpr)continue;
+					xline("	%s <= ", varName(reg, false));
+					PrintMatchedSrc(reg.typ, reg.resetExpr);
+					xput(";");
+				}
+			}
+			xline("end if;");
+		}
+	}
+
+	void printVHDLProcess(KScope proc, bool isClocked){
+		bool anyClocked = false;
+		foreach(s; proc.code){
+			if(!s.anyClocked(isClocked))continue;
+			anyClocked = true;
+			break;
+		}
+		if(!anyClocked)return;
+
 		xnewline;
-		xline("%s: process (", proc.name);
-		PrintSensitivityList(proc);
-		xput(")");
+		if(isClocked){
+			xline("%s: process", proc.name);
+		}else{
+			xline("%s_comb: process (", proc.name);
+			PrintSensitivityList(proc);
+			xput(")");
+		}
 		mIndent=2;
 		
 		foreach(KVar v; proc){
 			xput("\n\t\tvariable %s: %s;", v.name, typName(v.typ));
 		}
 		xput("\n	begin");
-		PrintPreloadLatchesAndWires(proc.parent, proc);
+		if(isClocked){
+			KProcess clkProc = cast(KProcess)proc;
+			xline("wait until rising_edge(%s_clk)", clkProc.clk.name);
+		}else{
+			PrintPreloadLatchesAndWires(proc.parent, proc);
+		}
 		foreach(KVar localVar; proc){
 			PrintPreloadSignal(localVar, proc);
 		}
 
 
 		foreach(s; proc.code){
-			printVHDL(s);
+			printVHDL(s, isClocked);
 		}
+
+		if(isClocked){
+			printVHDLProcessReset(cast(KProcess)proc);
+		}
+
 		mIndent=1;
 		xline("end process;");
 	}
@@ -664,7 +644,7 @@ use work.desilog.all;
 		}
 
 		foreach(s; func.code){
-			printVHDL(s);
+			printVHDL(s, false);
 		}
 		mIndent=1;
 		xline("end;");
@@ -752,7 +732,7 @@ use work.desilog.all;
 		PrintAssign(dst, src);
 	}
 
-	void printVHDL(KStmtSet a){
+	void printVHDL(KStmtSet a, bool clocked){
 		PrintAssignLine(a.dst, a.src, "");
 	}
 
@@ -769,7 +749,7 @@ use work.desilog.all;
 		xput(" =>\t");
 	}
 
-	void printVHDL(KStmtMux a){
+	void printVHDL(KStmtMux a, bool clocked){
 		xnewline;
 		xline("case ");
 		a.mux.printVHDL();
@@ -787,7 +767,7 @@ use work.desilog.all;
 
 		xline("end case;");
 	}
-	void printVHDL(KStmtArrMux a){
+	void printVHDL(KStmtArrMux a, bool clocked){
 		xnewline;
 		xline("case ");
 		a.mux.printVHDL();
@@ -805,7 +785,7 @@ use work.desilog.all;
 		xline("end case;");
 	}
 
-	void printVHDL(KStmtPick a){
+	void printVHDL(KStmtPick a, bool clocked){
 		xline("if ");
 		PrintConditionalExpr(a.src);
 		xput(" then");
@@ -815,7 +795,7 @@ use work.desilog.all;
 		xline("end if;");
 	}
 
-	void printVHDL(KStmtIncDec a){
+	void printVHDL(KStmtIncDec a, bool clocked){
 		xline("");
 		a.dst.printVHDL();
 
@@ -828,13 +808,13 @@ use work.desilog.all;
 		xput(";");
 	}
 
-	void printVHDL(KStmtReturn a){
+	void printVHDL(KStmtReturn a, bool clocked){
 		xline("return ");
 		PrintMatchedSrc(a.func.typ, a.src);
 		xput(";");
 	}
 
-	void printVHDL(KStmtIfElse a){
+	void printVHDL(KStmtIfElse a, bool clocked){
 		with(a){
 			for(size_t i=0; i < conds.length; i++){
 				ICond cnd = conds[i];
@@ -846,9 +826,11 @@ use work.desilog.all;
 				}else{
 					xline("else");
 				}
+				if(!cnd.block.anyClocked(clocked))continue;
 				mIndent++;
 				foreach(s; cnd.block.code){
-					s.printVHDL();
+					if(!s.anyClocked(clocked))continue;
+					s.printVHDL(clocked);
 				}
 				mIndent--;
 			}
@@ -856,24 +838,25 @@ use work.desilog.all;
 		}
 	}
 
-	void printVHDL(KStmtSwitch a){
+	void printVHDL(KStmtSwitch a, bool clocked){
 		xnewline;
 		xline("case ");
 		a.mux.printVHDL();
 		xput(" is");
 
 		foreach(e; a.entries){
+			if(!e.block.anyClocked(clocked))continue;
 			printWhenCases(a.mux.finalTyp, e.icases);
 			mIndent+=2;
 			if(!e.block.code.length) xput("null;");
-			foreach(s; e.block.code) s.printVHDL();
+			foreach(s; e.block.code) s.printVHDL(clocked);
 			mIndent-=2;
 		}
-		if(a.others){
+		if(a.others && a.others.anyClocked(clocked)){
 			xline("\twhen others => ");
 			if(!a.others.code.length) xput("null;");
 			mIndent+=2;
-			foreach(s; a.others.code) s.printVHDL();
+			foreach(s; a.others.code) s.printVHDL(clocked);
 			mIndent-=2;
 		}else{
 			xline("\twhen others => null;");
@@ -912,7 +895,7 @@ use work.desilog.all;
 		xput(";");
 	}
 
-	void printVHDL(KStmtLink a){
+	void printVHDL(KStmtLink a, bool clocked){
 		VEndPoint dst = a.edst;
 		VEndPoint src = a.esrc;
 
@@ -925,34 +908,8 @@ use work.desilog.all;
 	}
 
 
-	void printVHDL(KStmtObjMethod s){
-		/*if(auto a = cast(KArgRAMMeth)s.dst){
-			int port = 0;
-			switch(a.method.name){
-				case "setAddr0":
-				case "setAddr1":
-					if(a.method.name == "setAddr1") port = 1;
-					xline("%s_addr%d_wire <= ", a.ram.name, port);
-					PrintMatchedSrc(a.ram.addrTyp, a.methodArgs[0]);
-					xput(";");
-					break;
-				case "write0":
-				case "write1":
-					if(a.method.name == "write1") port = 1;
-					xline("%s_write%d <= '1';", a.ram.name, port);
-					xline("%s_wdata%d <= ", a.ram.name, port);
-					PrintMatchedSrc(a.ram.typ, a.methodArgs[0]);
-					xput(";");
-					break;
-				default: errInternal;
-			}
-		}
-		else
-		*/
-		errInternal;
-	}
 
-	void printVHDL(KStmtReport s){
+	void printVHDL(KStmtReport s, bool clocked){
 		if(!s.allow) return;
 		if(!cfgGenReport) return;
 		string padding = ` & " "`; // can be configured to be none
@@ -977,25 +934,26 @@ use work.desilog.all;
 		xput(" severity %s;", vhdlSevStr);
 	}
 
-	void printVHDL(KStmtAssert s){
+	void printVHDL(KStmtAssert s, bool clocked){
 		if(!cfgGenAssert) return;
 		xline("assert ");
 		PrintConditionalExpr(s.cond);
 		xput(` report "DG assert fail at %s:%d" severity failure;`, s.fileName, s.lineNum);
 	}
 
-	void printVHDL(KStmt s){
-			  if(auto a = cast(KStmtSet)s)		printVHDL(a);
-		else if(auto a = cast(KStmtMux)s)		printVHDL(a);
-		else if(auto a = cast(KStmtArrMux)s)	printVHDL(a);
-		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a);
-		else if(auto a = cast(KStmtSwitch)s)	printVHDL(a);
-		else if(auto a = cast(KStmtObjMethod)s) printVHDL(a);
-		else if(auto a = cast(KStmtPick)s)		printVHDL(a);
-		else if(auto a = cast(KStmtReturn)s)	printVHDL(a);
-		else if(auto a = cast(KStmtIncDec)s)	printVHDL(a);
-		else if(auto a = cast(KStmtReport)s)	printVHDL(a);
-		else if(auto a = cast(KStmtAssert)s)	printVHDL(a);
+	void printVHDL(KStmt s, bool clocked){
+		if(!s.anyClocked(clocked))return;
+
+			  if(auto a = cast(KStmtSet)s)		printVHDL(a, clocked);
+		else if(auto a = cast(KStmtMux)s)		printVHDL(a, clocked);
+		else if(auto a = cast(KStmtArrMux)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtIfElse)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtSwitch)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtPick)s)		printVHDL(a, clocked);
+		else if(auto a = cast(KStmtReturn)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtIncDec)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtReport)s)	printVHDL(a, clocked);
+		else if(auto a = cast(KStmtAssert)s)	printVHDL(a, clocked);
 		else errInternal;
 	}
 
@@ -1216,7 +1174,7 @@ use work.desilog.all;
 			xline("process(clk, reset_n) begin");
 			mIndent++;
 			foreach(s; f.code){
-				s.printVHDL();
+				s.printVHDL(false);
 			}
 			mIndent--;
 			xline("end process;");

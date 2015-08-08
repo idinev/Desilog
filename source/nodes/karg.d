@@ -18,6 +18,7 @@ class KArg{
 
 	void onWrite(){}
 	void onRead(){}
+	bool anyClocked(bool clocked){ return true;}
 }
 
 class KArgVar : KArg{
@@ -28,6 +29,11 @@ class KArgVar : KArg{
 	}
 	override void onRead(){
 		OnVarRead(var, proc);
+	}
+	override bool anyClocked(bool clocked) {
+		if(var.storage == KVar.EStor.kvar) return true;
+		bool isReg = (var.storage == KVar.EStor.kreg);
+		return isReg == clocked;
 	}
 }
 
@@ -47,19 +53,11 @@ class KArgObjDat : KArg{
 	override void onRead(){
 		OnVarRead(var, proc);
 	}
-}
-class KArgObjMethod : KArg{
-	XOffset arrIdx;
-	KMethod method;
-	KExpr[] methodArgs;
-
-	void setup(ref AHanAccess acc){
-		arrIdx = acc.arrIdx;
-		method = acc.method;
-		methodArgs = acc.methodArgs;
-		finalTyp = acc.finalTyp;
+	override bool anyClocked(bool clocked) {
+		if(var.storage == KVar.EStor.kvar) return true;
+		bool isReg = (var.storage == KVar.EStor.kreg);
+		return isReg == clocked;
 	}
-
 }
 
 class KArgSubuPort : KArgObjDat{

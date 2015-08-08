@@ -28,52 +28,42 @@ use work.desilog.all;
 
 --#------- tute0 ------------------------------------
 architecture rtl of tute0 is
+	signal dg_o_sum: u8;	-- reg
+	signal dg_o_totalSum: u8;	-- reg
+	signal dg_o_outXorWire: u8;	-- WIRE
+	signal dg_o_outLatch: u8;	-- LATCH!!!
 	signal counter: u4;	-- reg
-
-	----- internal regs/wires/etc --------
-	signal dg_c_xx: u8;
-	signal dg_c_yy: u8;
-	signal dg_c_sum: u8;
-	signal dg_o_sum: u8;
-	signal dg_c_totalSum: u8;
-	signal dg_o_totalSum: u8;
-	signal dg_w_outXorWire: u8;
-	signal dg_l_outLatch: u8;
-	signal dg_c_counter: u4;
 begin
 
-	dg_comb_proc1: process (all)
+	dg_comb_proc1_comb: process (all)
 	begin
-		dg_l_outLatch <= dg_l_outLatch; -- latch preload
+		dg_o_outLatch <= dg_o_outLatch; -- latch preload
 		if (dg_boolToBit(xx = X"55") = '1') then
-			dg_l_outLatch <= yy;
+			dg_o_outLatch <= yy;
 		end if;
 	end process;
 
-	MyProcess: process (all)
+	MyProcess_comb: process (all)
 		variable varSum: u8;
 	begin
-		dg_c_sum <= dg_o_sum; -- reg preload
-		dg_c_totalSum <= dg_o_totalSum; -- reg preload
-		dg_w_outXorWire <= X"00"; -- wire pre-zero-init
-		dg_c_counter <= counter; -- reg preload
+		dg_o_outXorWire <= X"00"; -- wire pre-zero-init
 		varSum := X"00"; -- local-var zero-init
 		varSum := (xx + yy);
-		dg_c_sum <= varSum;
-		dg_c_totalSum <= (dg_o_totalSum + varSum);
-		if (dg_boolToBit(counter = X"5") = '1') then
-			dg_c_totalSum <= varSum;
-		end if;
-		dg_w_outXorWire <= (xx xor yy);
-		dg_c_counter <= counter + X"1";
+		dg_o_outXorWire <= (xx xor yy);
 	end process;
 
-	----[ sync clock pump for clk ]------
-	process begin
-		wait until rising_edge(clk_clk);
-		dg_o_sum <= dg_c_sum;
-		dg_o_totalSum <= dg_c_totalSum;
-		counter <= dg_c_counter;
+	MyProcess: process
+		variable varSum: u8;
+	begin
+		wait until rising_edge(clk_clk)
+		varSum := X"00"; -- local-var zero-init
+		varSum := (xx + yy);
+		dg_o_sum <= varSum;
+		dg_o_totalSum <= (dg_o_totalSum + varSum);
+		if (dg_boolToBit(counter = X"5") = '1') then
+			dg_o_totalSum <= varSum;
+		end if;
+		counter <= counter + X"1";
 		if clk_reset_n = '0' then
 			dg_o_totalSum <= X"00";
 			counter <= X"0";
@@ -83,8 +73,8 @@ begin
 	------[ output registers/wires/latches ] --------------
 	sum <= dg_o_sum;
 	totalSum <= dg_o_totalSum;
-	outXorWire <= dg_w_outXorWire;
-	outLatch <= dg_l_outLatch;
+	outXorWire <= dg_o_outXorWire;
+	outLatch <= dg_o_outLatch;
 end;
 
 

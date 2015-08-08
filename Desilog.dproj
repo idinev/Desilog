@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{B325B502-AA47-4BDF-9431-02B3AD519DEC}</ProjectGuid>
+    <ProjectGuid>{4056F8BF-C213-40AE-9877-57169268B185}</ProjectGuid>
     <Compiler>DMD2</Compiler>
     <PreferOneStepBuild>true</PreferOneStepBuild>
     <UseDefaultCompiler>true</UseDefaultCompiler>
@@ -11,59 +11,54 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
-    <ObjectsDirectory>obj/Debug</ObjectsDirectory>
+    <ObjectsDirectory>obj\Debug</ObjectsDirectory>
     <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
     <UnittestMode>false</UnittestMode>
     <OutputName>Desilog</OutputName>
     <Target>Executable</Target>
     <DebugLevel>0</DebugLevel>
-    <OutputPath>bin</OutputPath>
-    <Commandlineparameters>-dev.err -top tute3 -cd /home/ili/dev/Desilog/tutorial/tute3 -tb.vsim tute3_tb</Commandlineparameters>
+    <OutputPath>.</OutputPath>
     <Externalconsole>true</Externalconsole>
+    <Commandlineparameters>-dev.err -top trash2 -cd D:\ULTRANO\Desilog\examples\temp_trash</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
-    <ObjectsDirectory>obj/Release</ObjectsDirectory>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
     <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
     <UnittestMode>false</UnittestMode>
     <OutputName>Desilog</OutputName>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <DebugLevel>0</DebugLevel>
-    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\Unittest</OutputPath>
-    <ObjectsDirectory>obj/Unittest</ObjectsDirectory>
+    <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
     <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
     <UnittestMode>true</UnittestMode>
     <OutputName>Desilog</OutputName>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <DebugLevel>0</DebugLevel>
-    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="source\app.d" />
     <Compile Include="source\common.d" />
     <Compile Include="source\knode.d" />
     <Compile Include="source\tools.d" />
+    <Compile Include="source\gen\gen_files.d" />
+    <Compile Include="source\gen\gen_vhdl.d" />
+    <Compile Include="source\gen\run_vsim.d" />
     <Compile Include="source\nodes\dpfile.d" />
+    <Compile Include="source\nodes\karg.d" />
+    <Compile Include="source\nodes\kfunc.d" />
     <Compile Include="source\nodes\ktyp.d" />
+    <Compile Include="source\nodes\kunit.d" />
     <Compile Include="source\nodes\kvar.d" />
-    <Compile Include="source\parser\token.d" />
-    <Compile Include="source\parser\tokenizer.d" />
     <Compile Include="source\parser\expr.d" />
     <Compile Include="source\parser\stmt.d" />
-    <Compile Include="source\gen\gen_vhdl.d" />
-    <Compile Include="source\nodes\karg.d" />
-    <Compile Include="source\nodes\kunit.d" />
-    <Compile Include="source\nodes\kfunc.d" />
-    <Compile Include="source\gen\run_vsim.d" />
-    <Compile Include="source\gen\gen_files.d" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="source\gen\" />
+    <Compile Include="source\parser\token.d" />
+    <Compile Include="source\parser\tokenizer.d" />
   </ItemGroup>
 </Project>

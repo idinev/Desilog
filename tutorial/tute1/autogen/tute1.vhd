@@ -36,24 +36,13 @@ use work.desilog.all;
 
 --#------- MyAdder ------------------------------------
 architecture rtl of MyAdder is
-
-	----- internal regs/wires/etc --------
-	signal dg_c_x: u8;
-	signal dg_c_y: u8;
-	signal dg_c_zout: u8;
-	signal dg_o_zout: u8;
+	signal dg_o_zout: u8;	-- reg
 begin
 
-	main: process (all)
+	main: process
 	begin
-		dg_c_zout <= dg_o_zout; -- reg preload
-		dg_c_zout <= (x + y);
-	end process;
-
-	----[ sync clock pump for clkAdd ]------
-	process begin
-		wait until rising_edge(clkAdd_clk);
-		dg_o_zout <= dg_c_zout;
+		wait until rising_edge(clkAdd_clk)
+		dg_o_zout <= (x + y);
 	end process;
 
 	------[ output registers/wires/latches ] --------------
@@ -70,34 +59,25 @@ use work.desilog.all;
 
 --#------- tute1 ------------------------------------
 architecture rtl of tute1 is
+	signal dg_o_oout: u8;	-- reg
 
-	----- internal regs/wires/etc --------
-	signal dg_c_oout: u8;
-	signal dg_o_oout: u8;
-
-	----- unit signals -------------
+	----- sub-unit signals -------------
 		signal madd_x : u8;
-		signal dg_c_madd_x : u8;
 		signal madd_y : u8;
-		signal dg_c_madd_y : u8;
 		signal madd_zout : u8;
 		signal madd2_x : u8;
 		signal madd2_y : u8;
-		signal dg_c_madd2_y : u8;
 		signal madd2_zout : u8;
 		signal madd2_clkAdd_clk, madd2_clkAdd_reset_n : std_ulogic;
 begin
 
-	main: process (all)
+	main: process
 	begin
-		dg_c_oout <= dg_o_oout; -- reg preload
-		dg_c_madd_x <= madd_x; -- reg preload
-		dg_c_madd_y <= madd_y; -- reg preload
-		dg_c_madd2_y <= madd2_y; -- reg preload
-		dg_c_madd_x <= X"01";
-		dg_c_madd_y <= X"02";
-		dg_c_madd2_y <= X"05";
-		dg_c_oout <= (madd_zout + madd2_zout);
+		wait until rising_edge(clk_clk)
+		madd_x <= X"01";
+		madd_y <= X"02";
+		madd2_y <= X"05";
+		dg_o_oout <= (madd_zout + madd2_zout);
 	end process;
 
 	-------[ sub-units ]-----------
@@ -120,15 +100,6 @@ begin
 	madd2_clkAdd_clk <= clk_clk;
 	madd2_clkAdd_reset_n <= clk_reset_n;
 	madd2_x <= madd_zout;
-
-	----[ sync clock pump for clk ]------
-	process begin
-		wait until rising_edge(clk_clk);
-		dg_o_oout <= dg_c_oout;
-		madd_x <= dg_c_madd_x;
-		madd_y <= dg_c_madd_y;
-		madd2_y <= dg_c_madd2_y;
-	end process;
 
 	------[ output registers/wires/latches ] --------------
 	oout <= dg_o_oout;

@@ -172,6 +172,13 @@ class KScope : KNode{
 	KStmt[] code;
 
 	KVar[] varsRead;
+
+	bool anyClocked(bool clocked){
+		foreach(c; code){
+			if(c.anyClocked(clocked))return true;
+		}
+		return false;
+	}
 	
 	override void dump(int tab){
 		super.dump(tab);

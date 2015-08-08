@@ -272,7 +272,7 @@ void reqMatch(Token[] res, string pattern){
 				break;
 			case 'u': // a unique identifier
 				notImplemented;
-				break;			
+				break;
 			default:
 				req(c);
 		}

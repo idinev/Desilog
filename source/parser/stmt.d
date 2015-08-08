@@ -3,6 +3,10 @@ import common;
 
 class KStmt{ // line-statement
 	KArg  dst;
+
+	bool anyClocked(bool clocked){
+		return dst.anyClocked(clocked);
+	}
 };
 
 class KStmtSet : KStmt{
@@ -12,10 +16,6 @@ class KStmtSet : KStmt{
 
 class KStmtLink : KStmt{
 	VEndPoint edst, esrc;
-}
-
-class KStmtObjMethod : KStmt{
-
 }
 
 class KStmtPick : KStmt{
@@ -49,6 +49,13 @@ class KStmtIfElse : KStmt{
 		KScope block;
 	};
 	ICond[] conds;
+
+	override bool anyClocked(bool clocked){
+		foreach(c; conds){
+			if(c.block.anyClocked(clocked))return true;
+		}
+		return false;
+	}
 };
 class KStmtSwitch : KStmt{
 	KExpr mux;
@@ -58,6 +65,16 @@ class KStmtSwitch : KStmt{
 	};
 	Entry[] entries;
 	KScope others;
+
+	override bool anyClocked(bool clocked){
+		foreach(e; entries){
+			if(e.block.anyClocked(clocked))return true;
+		}
+		if(others !is null){
+			if(others.anyClocked(clocked))return true;
+		}
+		return false;
+	}
 }
 
 class KStmtReport : KStmt{
@@ -65,6 +82,10 @@ class KStmtReport : KStmt{
 	int severityLevel;
 	KExpr[] values;
 	string[] strings;
+
+	override bool anyClocked(bool clocked){
+		return clocked; // print "reports" only in clocked processes
+	}
 }
 
 class KStmtAssert : KStmt{
@@ -76,6 +97,10 @@ class KStmtAssert : KStmt{
 class KStmtReturn : KStmt{
 	KExpr src;
 	KFunc func;
+
+	override bool anyClocked(bool clocked){
+		return false;
+	}
 }
 
 
@@ -178,11 +203,6 @@ KStmt ParseStatementMux(KScope node, KArg dst){
 		req(';');
 		s.entries ~= entry;
 	}	
-	return s;
-}
-
-KStmt ParseStatementObjMethod(KScope node, KArg dst){
-	KStmtObjMethod s = new KStmtObjMethod();
 	return s;
 }
 
@@ -391,23 +411,19 @@ void ReadStatementLine(KScope node, ref KStmt[] code){
 		s = ParseStatementAssert(node);
 	}else{
 		KArg dst = reqReadArg(word, node, true);
-		
-		if(cast(KArgObjMethod)dst){
-			s = ParseStatementObjMethod(node, dst);
+
+		if(peek('=')){
+			s = ParseStatementSet(node, dst);
+		}else if(peek("?=")){
+			s = ParseStatementPick(node, dst);
+		}else if(peek("++")){
+			s = ParseStatementIncDec(node, dst, true);
+		}else if(peek("--")){
+			s = ParseStatementIncDec(node, dst, false);
 		}else{
-			if(peek('=')){
-				s = ParseStatementSet(node, dst);
-			}else if(peek("?=")){
-				s = ParseStatementPick(node, dst);
-			}else if(peek("++")){
-				s = ParseStatementIncDec(node, dst, true);
-			}else if(peek("--")){
-				s = ParseStatementIncDec(node, dst, false);
-			}else{
-				err("Accepted statement operators are only = and ?=");
-			}
+			err("Accepted statement operators are only = and ?=");
 		}
-		
+
 		req(';');
 		s.dst = dst;
 	}
